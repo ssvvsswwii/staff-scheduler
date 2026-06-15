@@ -100,14 +100,25 @@ async function ghGet(path) {
 
 async function ghPut(path, content, sha) {
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2))));
-  const body = { message: `Update ${path}`, content: encoded };
-  if (sha) body.sha = sha;
 
-  const res = await fetch(repoUrl(path), {
-    method: 'PUT',
-    headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
+  async function attempt(useSha) {
+    const body = { message: `Update ${path}`, content: encoded };
+    if (useSha) body.sha = useSha;
+    return fetch(repoUrl(path), {
+      method: 'PUT',
+      headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  }
+
+  let res = await attempt(sha);
+
+  // SHA conflict (409/422) — fetch the real current SHA and retry once
+  if (!res.ok && (res.status === 409 || res.status === 422)) {
+    const current = await ghGet(path);
+    res = await attempt(current ? current.sha : undefined);
+  }
+
   if (!res.ok) { const e = await res.json(); throw new Error(e.message || `HTTP ${res.status}`); }
   return (await res.json()).content.sha;
 }
