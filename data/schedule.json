@@ -66,6 +66,90 @@
       "shift": "PM",
       "branch": "Hua Ho Manggis",
       "staffId": "6"
+    },
+    {
+      "date": "2026-06-18",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "1"
+    },
+    {
+      "date": "2026-06-20",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "1"
+    },
+    {
+      "date": "2026-06-21",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-21",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-22",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "6"
+    },
+    {
+      "date": "2026-06-22",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-23",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-23",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-24",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "4"
+    },
+    {
+      "date": "2026-06-24",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-25",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-25",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "4"
+    },
+    {
+      "date": "2026-06-26",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "3"
+    },
+    {
+      "date": "2026-06-26",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "6"
     }
   ]
 }
