@@ -3,127 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Staff Scheduler · Admin</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Staff Scheduler</title>
+  <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
-  <nav class="navbar">
-    <span class="navbar-brand">📅 Staff Scheduler</span>
-    <div class="navbar-actions">
-      <button class="btn btn-ghost btn-sm" onclick="openModal('staffModal')">👥 Staff</button>
-      <button class="btn btn-ghost btn-sm" onclick="openModal('settingsModal')">⚙️ Settings</button>
+  <!-- ── Header ── -->
+  <header class="app-header">
+    <span class="app-title">📅 Staff Scheduler</span>
+    <div class="month-nav">
+      <button class="nav-btn" id="prevBtn">&#8249;</button>
+      <span class="month-label" id="monthLabel"></span>
+      <button class="nav-btn" id="nextBtn">&#8250;</button>
     </div>
-  </nav>
-
-  <div class="container">
-
-    <!-- Period navigation -->
-    <div class="period-bar">
-      <div class="period-nav">
-        <button class="btn-nav" id="prevBtn" title="Previous period">&#8249;</button>
-        <span class="period-label" id="periodLabel">—</span>
-        <button class="btn-nav" id="nextBtn" title="Next period">&#8250;</button>
-      </div>
-      <div class="period-bar-spacer"></div>
-      <a id="staffViewLink" href="https://ssvvsswwii.github.io/staff-scheduler/schedule.html" target="_blank" class="btn btn-outline btn-sm">🔗 Staff View</a>
-      <button class="btn btn-primary btn-sm" id="saveBtn" onclick="saveData()">💾 Save to GitHub</button>
+    <div class="header-right">
+      <span class="edit-badge hidden" id="editBadge">✏️ Editing</span>
+      <button class="hdr-btn" id="settingsBtn" style="display:none" onclick="openSettings()">⚙️</button>
+      <button class="hdr-btn" id="saveBtn"     style="display:none" onclick="saveData()">💾 Save</button>
+      <button class="hdr-btn" id="lockBtn">🔒 Unlock</button>
     </div>
+  </header>
 
-    <!-- Branch tabs -->
+  <!-- ── Branch tabs ── -->
+  <div class="branch-bar">
     <div class="branch-tabs" id="branchTabs"></div>
+  </div>
 
-    <!-- Schedule grid -->
-    <div class="schedule-wrapper">
-      <table class="schedule-table" id="scheduleTable">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Morning (AM)</th>
-            <th>Afternoon (PM)</th>
-          </tr>
-        </thead>
-        <tbody id="scheduleBody">
-          <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
+  <!-- ── Calendar ── -->
+  <main>
+    <div class="cal-grid" id="calGrid"></div>
+  </main>
 
-  </div><!-- /container -->
-
-  <!-- ── Staff modal ── -->
-  <div id="staffModal" class="modal-overlay hidden">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>👥 Staff Management</h2>
-        <button class="btn btn-icon dark" onclick="closeModal('staffModal')">✕</button>
+  <!-- ── Day modal ── -->
+  <div class="overlay hidden" id="dayOverlay">
+    <div class="sheet">
+      <div class="sheet-header">
+        <h2 id="dayTitle">—</h2>
+        <button class="close-btn" onclick="closeDay()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-row">
-          <input id="newId"     class="input" type="text" placeholder="Staff ID (e.g. EMP001)" style="max-width:140px">
-          <input id="newName"   class="input" type="text" placeholder="Full Name" style="flex:2">
-        </div>
-        <div class="form-row" style="margin-bottom:1rem">
-          <select id="newBranch" class="input">
-            <option value="">Default Branch (optional)</option>
-            <option>Rimba Point</option>
-            <option>Healthy Holm Kiulap</option>
-            <option>Hua Ho Manggis</option>
-          </select>
-          <button class="btn btn-primary" onclick="addStaff()">+ Add</button>
-        </div>
+      <div class="sheet-body" id="dayBody"></div>
+    </div>
+  </div>
 
-        <div class="staff-list-header">Current Staff (<span id="staffCount">0</span>)</div>
-        <div id="staffList"></div>
+  <!-- ── Auth modal ── -->
+  <div class="overlay hidden" id="authOverlay">
+    <div class="modal-sm">
+      <div class="sheet-header">
+        <h2>Unlock Editing</h2>
+        <button class="close-btn" onclick="closeModal('authOverlay')">✕</button>
+      </div>
+      <div style="padding:1.25rem">
+        <input type="password" id="pwInput" class="input" placeholder="Enter password"
+               onkeydown="if(event.key==='Enter')submitPassword()">
+        <p class="pw-error hidden" id="pwError">Incorrect password.</p>
+        <button class="btn btn-primary" style="width:100%;margin-top:0.75rem" onclick="submitPassword()">Unlock</button>
       </div>
     </div>
   </div>
 
   <!-- ── Settings modal ── -->
-  <div id="settingsModal" class="modal-overlay hidden">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>⚙️ GitHub Settings</h2>
-        <button class="btn btn-icon dark" onclick="closeModal('settingsModal')">✕</button>
+  <div class="overlay hidden" id="settingsOverlay">
+    <div class="modal-lg">
+      <div class="sheet-header">
+        <h2>⚙️ Settings</h2>
+        <button class="close-btn" onclick="closeModal('settingsOverlay')">✕</button>
       </div>
-      <div class="modal-body">
-
-        <div class="form-group" style="margin-bottom:0.85rem">
-          <label class="label">Repository Name</label>
-          <input id="cfgRepo" class="input" type="text" placeholder="staff-scheduler">
-        </div>
-
-        <div class="form-group" style="margin-bottom:0.85rem">
-          <label class="label">Personal Access Token (PAT)</label>
-          <input id="cfgToken" class="input" type="password" placeholder="ghp_xxxxxxxxxxxx">
-          <p class="hint">Needs <code>repo</code> scope. <a href="https://github.com/settings/tokens/new?scopes=repo&description=staff-scheduler" target="_blank">Generate one here ↗</a></p>
-        </div>
-
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
-          <button class="btn btn-outline" onclick="loadData()">↻ Load from GitHub</button>
-        </div>
-
-        <hr class="divider">
-
-        <div class="setup-guide">
-          <h3>First-time setup</h3>
-          <ol>
-            <li>Create a new <strong>public</strong> GitHub repo named <code>staff-scheduler</code> (under your account <code>ssvvsswwii</code>)</li>
-            <li>In the repo: <strong>Settings → Pages → Source → GitHub Actions</strong></li>
-            <li>Generate a PAT with <code>repo</code> scope and paste it above</li>
-            <li>Click <strong>Save Settings</strong>, then add your staff and build the schedule</li>
-            <li>Click <strong>Save to GitHub</strong> — the site deploys automatically within ~60 seconds</li>
-          </ol>
-          <div class="url-box">https://ssvvsswwii.github.io/staff-scheduler/schedule.html</div>
-        </div>
-
-      </div>
+      <div id="settingsBody" style="padding:1.25rem"></div>
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
-
-  <script src="js/admin.js?v=4"></script>
+  <div class="toast hidden" id="toast"></div>
+  <script src="js/app.js?v=1"></script>
 </body>
 </html>
