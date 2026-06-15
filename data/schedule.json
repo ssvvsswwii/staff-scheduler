@@ -1,4 +1,11 @@
 {
   "periodStart": "2026-06-15",
-  "assignments": []
+  "assignments": [
+    {
+      "date": "2026-06-15",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "1"
+    }
+  ]
 }
