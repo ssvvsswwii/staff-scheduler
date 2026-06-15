@@ -9,9 +9,10 @@ let periodStart = null;
 // ── Load data from static JSON files (served by GitHub Pages) ─────────────────
 async function loadData() {
   try {
+    const bust = `?v=${Date.now()}`;
     const [sr, scr] = await Promise.all([
-      fetch('./data/staff.json'),
-      fetch('./data/schedule.json')
+      fetch(`./data/staff.json${bust}`, { cache: 'no-cache' }),
+      fetch(`./data/schedule.json${bust}`, { cache: 'no-cache' })
     ]);
     if (!sr.ok || !scr.ok) throw new Error('files not found');
     staff = await sr.json();
