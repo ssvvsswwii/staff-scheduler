@@ -6,6 +6,36 @@
       "shift": "AM",
       "branch": "Rimba Point",
       "staffId": "1"
+    },
+    {
+      "date": "2026-06-16",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-17",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "3"
+    },
+    {
+      "date": "2026-06-18",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "4"
+    },
+    {
+      "date": "2026-06-19",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-20",
+      "shift": "AM",
+      "branch": "Rimba Point",
+      "staffId": "6"
     }
   ]
 }
