@@ -234,6 +234,114 @@
       "shift": "AM",
       "branch": "Healthy Holm Kiulap",
       "staffId": "3"
+    },
+    {
+      "date": "2026-06-16",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "1"
+    },
+    {
+      "date": "2026-06-16",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-17",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "3"
+    },
+    {
+      "date": "2026-06-17",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "4"
+    },
+    {
+      "date": "2026-06-18",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-18",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "6"
+    },
+    {
+      "date": "2026-06-19",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "1"
+    },
+    {
+      "date": "2026-06-19",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "3"
+    },
+    {
+      "date": "2026-06-20",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-20",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "4"
+    },
+    {
+      "date": "2026-06-21",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-21",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "6"
+    },
+    {
+      "date": "2026-06-22",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "1"
+    },
+    {
+      "date": "2026-06-22",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "6"
+    },
+    {
+      "date": "2026-06-23",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-23",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-24",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "3"
+    },
+    {
+      "date": "2026-06-24",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "4"
     }
   ]
 }
