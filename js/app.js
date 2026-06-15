@@ -269,7 +269,7 @@ function renderDayBody() {
   const body = document.getElementById('dayBody');
   if (!ds) return;
 
-  body.innerHTML = SHIFTS.map(shift => {
+  body.innerHTML = '<div class="shift-blocks">' + SHIFTS.map(shift => {
     const assigned    = S.assignments.filter(a => a.date === ds && a.shift === shift && a.branch === S.branch);
     const assignedIds = new Set(assigned.map(a => a.staffId));
     const available   = S.staff.filter(s => !assignedIds.has(s.id));
@@ -306,7 +306,7 @@ function renderDayBody() {
         </div>
         <div class="chips-row">${chips}${empty}${picker}</div>
       </div>`;
-  }).join('');
+  }).join('') + '</div>';
 }
 
 function togglePicker(shift) {
