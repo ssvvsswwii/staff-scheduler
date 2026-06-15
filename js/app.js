@@ -1,5 +1,5 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
-const BRANCHES  = ['Rimba Point', 'Healthy Holm Kiulap', 'Hua Ho Manggis'];
+let BRANCHES  = ['Rimba Point', 'Healthy Holm Kiulap', 'Hua Ho Manggis'];
 const SHIFTS    = ['AM', 'PM'];
 const OWNER     = 'ssvvsswwii';
 const DOW       = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -47,7 +47,14 @@ async function loadPublicData() {
       fetch(`./data/schedule.json${bust}`, { cache: 'no-cache' })
     ]);
     if (sr.ok)  S.staff = await sr.json();
-    if (scr.ok) { const d = await scr.json(); S.assignments = d.assignments || []; }
+    if (scr.ok) {
+      const d = await scr.json();
+      S.assignments = d.assignments || [];
+      if (d.branches && d.branches.length) {
+        BRANCHES = d.branches;
+        if (!BRANCHES.includes(S.branch)) S.branch = BRANCHES[0];
+      }
+    }
     renderCalendar();
   } catch { /* files not yet available */ }
 }
@@ -101,7 +108,7 @@ async function saveData() {
     if (scr) S.shas.schedule = scr.sha;
     const [ns, nsc] = await Promise.all([
       ghPut('data/staff.json',    S.staff,                                        S.shas.staff),
-      ghPut('data/schedule.json', { periodStart: isoDate(S.month), assignments: S.assignments }, S.shas.schedule)
+      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, assignments: S.assignments }, S.shas.schedule)
     ]);
     S.shas.staff = ns; S.shas.schedule = nsc;
     toast('Saved! Site updates in ~60 seconds.', 'success');
@@ -177,6 +184,7 @@ function updateEditUI() {
     saveBtn.style.display = 'none';
     setBtn.style.display  = 'none';
   }
+  renderBranchTabs();
 }
 
 // ── Month navigation ──────────────────────────────────────────────────────────
@@ -189,9 +197,45 @@ function renderMonthLabel() {
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
 function renderBranchTabs() {
-  document.getElementById('branchTabs').innerHTML = BRANCHES.map((b, i) =>
-    `<button class="branch-tab${b === S.branch ? ' active' : ''}" onclick="selectBranch(${i})">${b}</button>`
-  ).join('');
+  const addBtn = S.editMode ? `
+    <div class="branch-add-wrap" id="branchAddWrap">
+      <button class="branch-tab branch-add-btn" onclick="showBranchInput()">＋ Add Branch</button>
+      <div class="branch-input-row hidden" id="branchInputRow">
+        <input class="branch-input" id="branchNameInput" type="text" placeholder="Branch name"
+               onkeydown="if(event.key==='Enter')confirmBranch();if(event.key==='Escape')hideBranchInput()">
+        <button class="branch-ok"  onclick="confirmBranch()">✓</button>
+        <button class="branch-cancel" onclick="hideBranchInput()">✕</button>
+      </div>
+    </div>` : '';
+
+  document.getElementById('branchTabs').innerHTML =
+    BRANCHES.map((b, i) =>
+      `<button class="branch-tab${b === S.branch ? ' active' : ''}" onclick="selectBranch(${i})">${esc(b)}</button>`
+    ).join('') + addBtn;
+}
+
+function showBranchInput() {
+  document.getElementById('branchInputRow').classList.remove('hidden');
+  document.getElementById('branchAddWrap').querySelector('.branch-add-btn').style.display = 'none';
+  setTimeout(() => document.getElementById('branchNameInput').focus(), 50);
+}
+
+function hideBranchInput() {
+  document.getElementById('branchNameInput').value = '';
+  document.getElementById('branchInputRow').classList.add('hidden');
+  document.getElementById('branchAddWrap').querySelector('.branch-add-btn').style.display = '';
+}
+
+function confirmBranch() {
+  const name = document.getElementById('branchNameInput').value.trim();
+  if (!name) { hideBranchInput(); return; }
+  if (BRANCHES.includes(name)) { toast('Branch already exists', 'error'); return; }
+  BRANCHES.push(name);
+  S.branch = name;
+  hideBranchInput();
+  renderBranchTabs();
+  renderCalendar();
+  toast(`"${name}" added — click Save to keep it`, 'success');
 }
 function selectBranch(i) { S.branch = BRANCHES[i]; renderBranchTabs(); renderCalendar(); }
 

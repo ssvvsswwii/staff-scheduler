@@ -65,6 +65,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 }
 .branch-tab:hover { color: var(--primary); }
 .branch-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+.branch-add-btn { color: var(--primary); border-bottom-color: transparent !important; font-weight: 600; opacity: .8; }
+.branch-add-btn:hover { opacity: 1; background: var(--primary-light); border-radius: 6px 6px 0 0; }
+.branch-add-wrap { display: flex; align-items: center; }
+.branch-input-row { display: flex; align-items: center; gap: .3rem; padding: .3rem .5rem; }
+.branch-input-row.hidden { display: none; }
+.branch-input {
+  padding: .3rem .6rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: .875rem; width: 160px; outline: none;
+}
+.branch-input:focus { border-color: var(--primary); }
+.branch-ok, .branch-cancel {
+  background: none; border: none; cursor: pointer; font-size: 1rem; padding: .15rem .3rem; border-radius: 4px;
+}
+.branch-ok { color: var(--primary); }
+.branch-ok:hover { background: var(--primary-light); }
+.branch-cancel { color: var(--muted); }
+.branch-cancel:hover { background: var(--bg); }
 
 /* ── Calendar grid ── */
 main { padding: 1rem; }
