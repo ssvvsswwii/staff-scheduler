@@ -165,19 +165,33 @@ body {
 .shift-badge.am { background: #dbeafe; color: #1d4ed8; }
 .shift-badge.pm { background: #fef3c7; color: #92400e; }
 
-/* ── Staff select ── */
-.staff-select {
-  width: 100%;
-  max-width: 240px;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.85rem;
-  background: white;
-  color: var(--text);
-  cursor: pointer;
+/* ── Checkbox list (multi-assign) ── */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.1rem 0;
 }
-.staff-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.12); }
+.staff-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  padding: 0.15rem 0.25rem;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.staff-check:hover { background: #f1f5f9; }
+.staff-check input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.staff-check input[type="checkbox"]:checked + span { font-weight: 600; color: var(--primary); }
 
 /* ── Modals ── */
 .modal-overlay {

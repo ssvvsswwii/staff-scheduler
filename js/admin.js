@@ -164,13 +164,19 @@ async function saveData() {
 }
 
 // ── Assignment helpers ────────────────────────────────────────────────────────
-function getAssignment(dateStr, shift, branch) {
-  return S.assignments.find(a => a.date === dateStr && a.shift === shift && a.branch === branch);
+function getAssignedIds(dateStr, shift, branch) {
+  return new Set(
+    S.assignments
+      .filter(a => a.date === dateStr && a.shift === shift && a.branch === branch)
+      .map(a => a.staffId)
+  );
 }
 
-function setAssignment(dateStr, shift, branch, staffId) {
-  S.assignments = S.assignments.filter(a => !(a.date === dateStr && a.shift === shift && a.branch === branch));
-  if (staffId) S.assignments.push({ date: dateStr, shift, branch, staffId });
+function toggleAssignment(dateStr, shift, branch, staffId, checked) {
+  S.assignments = S.assignments.filter(
+    a => !(a.date === dateStr && a.shift === shift && a.branch === branch && a.staffId === staffId)
+  );
+  if (checked) S.assignments.push({ date: dateStr, shift, branch, staffId });
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -205,18 +211,16 @@ function renderGrid() {
     const cls  = isToday(d) ? ' today' : (isWeekend(d) ? ' weekend' : '');
 
     const cells = SHIFTS.map(sh => {
-      const a = getAssignment(ds, sh, S.branch);
-      const opts = `<option value="">— Unassigned —</option>` +
-        S.staff.map(s =>
-          `<option value="${esc(s.id)}"${a?.staffId === s.id ? ' selected' : ''}>${esc(s.name)} (${esc(s.id)})</option>`
-        ).join('');
+      const assigned = getAssignedIds(ds, sh, S.branch);
+      const checks = S.staff.map(s => `
+        <label class="staff-check">
+          <input type="checkbox" ${assigned.has(s.id) ? 'checked' : ''}
+                 onchange="toggleAssignment('${ds}','${sh}','${esc(S.branch)}','${esc(s.id)}',this.checked)">
+          <span>${esc(s.name)}</span>
+        </label>`).join('');
       return `<td class="shift-cell">
         <span class="shift-badge ${sh.toLowerCase()}">${sh}</span>
-        <select class="staff-select"
-                data-date="${ds}" data-shift="${sh}" data-branch="${esc(S.branch)}"
-                onchange="handleChange(this)">
-          ${opts}
-        </select>
+        <div class="check-list">${checks}</div>
       </td>`;
     }).join('');
 
@@ -251,10 +255,6 @@ function populateSettings() {
 }
 
 // ── Event handlers ────────────────────────────────────────────────────────────
-function handleChange(sel) {
-  setAssignment(sel.dataset.date, sel.dataset.shift, sel.dataset.branch, sel.value);
-}
-
 function selectBranch(i) {
   S.branch = BRANCHES[i];
   renderBranchTabs();
