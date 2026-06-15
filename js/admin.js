@@ -133,6 +133,14 @@ async function saveData() {
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
+    // Always fetch latest SHAs first to avoid conflicts when repo was updated externally
+    const [sr, scr] = await Promise.all([
+      ghGet('data/staff.json'),
+      ghGet('data/schedule.json')
+    ]);
+    if (sr)  S.shas.staff     = sr.sha;
+    if (scr) S.shas.schedule  = scr.sha;
+
     const schedule = { periodStart: isoDate(S.periodStart), assignments: S.assignments };
     const [ns, nsc] = await Promise.all([
       ghPut('data/staff.json',    S.staff,   S.shas.staff),
