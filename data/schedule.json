@@ -36,6 +36,36 @@
       "shift": "AM",
       "branch": "Rimba Point",
       "staffId": "6"
+    },
+    {
+      "date": "2026-06-15",
+      "shift": "PM",
+      "branch": "Rimba Point",
+      "staffId": "2"
+    },
+    {
+      "date": "2026-06-15",
+      "shift": "AM",
+      "branch": "Healthy Holm Kiulap",
+      "staffId": "3"
+    },
+    {
+      "date": "2026-06-15",
+      "shift": "PM",
+      "branch": "Healthy Holm Kiulap",
+      "staffId": "4"
+    },
+    {
+      "date": "2026-06-15",
+      "shift": "AM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "5"
+    },
+    {
+      "date": "2026-06-15",
+      "shift": "PM",
+      "branch": "Hua Ho Manggis",
+      "staffId": "6"
     }
   ]
 }
