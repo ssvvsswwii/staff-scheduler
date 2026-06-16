@@ -12,6 +12,7 @@ const S = {
   assignments: [],
   month:       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   editMode:    false,
+  dataLoaded:  false,
   github:      { token: '', repo: 'staff-scheduler' },
   shas:        { staff: null, schedule: null },
   selectedDay: null
@@ -52,10 +53,13 @@ async function loadPublicData() {
       const d = await scr.json();
       S.assignments = d.assignments || [];
       if (d.branches && d.branches.length) BRANCHES = d.branches;
+      // Sync the editor password hash from the repo so visitors must enter the password
+      if (d.editorPwHash) localStorage.setItem('edit_pw', d.editorPwHash);
     }
+    S.dataLoaded = true;
     renderBranchLegend();
     renderCalendar();
-  } catch { /* files not yet available */ }
+  } catch { S.dataLoaded = true; /* files not yet available */ }
 }
 
 // ── GitHub API ────────────────────────────────────────────────────────────────
@@ -107,7 +111,7 @@ async function saveData() {
     if (scr) S.shas.schedule = scr.sha;
     const [ns, nsc] = await Promise.all([
       ghPut('data/staff.json',    S.staff,                                        S.shas.staff),
-      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, assignments: S.assignments }, S.shas.schedule)
+      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, editorPwHash: localStorage.getItem('edit_pw') || '', assignments: S.assignments }, S.shas.schedule)
     ]);
     S.shas.staff = ns; S.shas.schedule = nsc;
     toast('Saved! Site updates in ~60 seconds.', 'success');
@@ -124,13 +128,15 @@ async function hashPw(pw) {
 function handleLockBtn() {
   if (S.editMode) { lockEdit(); return; }
   const hasPw = !!localStorage.getItem('edit_pw');
-  if (!hasPw) {
+  if (!hasPw && S.dataLoaded) {
+    // True first-time setup: server confirmed no password exists yet
     S.editMode = true;
     sessionStorage.setItem('edit_mode', '1');
     updateEditUI();
     openSettings();
     toast('Set an editor password in Settings', 'success');
   } else {
+    // Password exists (or page still loading) — always require it
     document.getElementById('pwError').classList.add('hidden');
     document.getElementById('pwInput').value = '';
     openModal('authOverlay');
