@@ -1,5 +1,11 @@
 {
-  "periodStart": "2026-06-15",
+  "periodStart": "2026-06-01",
+  "branches": [
+    "Rimba Point",
+    "Healthy Holm Kiulap",
+    "Hua Ho Manggis",
+    "Madang"
+  ],
   "assignments": [
     {
       "date": "2026-06-15",
