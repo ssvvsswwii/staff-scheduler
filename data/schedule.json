@@ -7,6 +7,12 @@
     "Madang"
   ],
   "editorPwHash": "06411563038b4eb88725af35e0feec30f3241a572cee7823827f9578b9e575b5",
+  "leave": [
+    {
+      "date": "2026-06-18",
+      "staffId": "1"
+    }
+  ],
   "assignments": [
     {
       "date": "2026-06-15",
@@ -73,12 +79,6 @@
       "shift": "PM",
       "branch": "Hua Ho Manggis",
       "staffId": "6"
-    },
-    {
-      "date": "2026-06-18",
-      "shift": "PM",
-      "branch": "Rimba Point",
-      "staffId": "1"
     },
     {
       "date": "2026-06-20",
