@@ -6,10 +6,30 @@ const DOW     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const BRANCH_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4'];
 function branchColor(i) { return BRANCH_COLORS[i % BRANCH_COLORS.length]; }
 
+// Brunei public holidays 2026
+// Fixed dates are exact. Islamic dates (marked ~) are approximate (±1 day, subject to moon sighting).
+const BRUNEI_HOLIDAYS = [
+  { date: '2026-01-01', name: "New Year's Day" },
+  { date: '2026-01-16', name: "Isra' Mi'raj", approx: true },
+  { date: '2026-02-23', name: 'National Day' },
+  { date: '2026-03-05', name: 'Nuzul Al-Quran', approx: true },
+  { date: '2026-03-20', name: 'Hari Raya Aidilfitri', approx: true },
+  { date: '2026-03-21', name: 'Hari Raya Aidilfitri (Day 2)', approx: true },
+  { date: '2026-05-27', name: 'Hari Raya Aidiladha', approx: true },
+  { date: '2026-05-28', name: 'Hari Raya Aidiladha (Day 2)', approx: true },
+  { date: '2026-05-31', name: 'Royal Brunei Armed Forces Day' },
+  { date: '2026-06-17', name: 'Awal Muharram', approx: true },
+  { date: '2026-07-15', name: "His Majesty's Birthday" },
+  { date: '2026-08-26', name: 'Maulidur Rasul', approx: true },
+  { date: '2026-12-25', name: 'Christmas Day' },
+];
+function getHoliday(ds) { return BRUNEI_HOLIDAYS.find(h => h.date === ds) || null; }
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const S = {
   staff:       [],
   assignments: [],
+  leave:       [],
   month:       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   editMode:    false,
   dataLoaded:  false,
@@ -52,8 +72,8 @@ async function loadPublicData() {
     if (scr.ok) {
       const d = await scr.json();
       S.assignments = d.assignments || [];
+      S.leave       = d.leave       || [];
       if (d.branches && d.branches.length) BRANCHES = d.branches;
-      // Sync the editor password hash from the repo so visitors must enter the password
       if (d.editorPwHash) localStorage.setItem('edit_pw', d.editorPwHash);
     }
     S.dataLoaded = true;
@@ -111,7 +131,7 @@ async function saveData() {
     if (scr) S.shas.schedule = scr.sha;
     const [ns, nsc] = await Promise.all([
       ghPut('data/staff.json',    S.staff,                                        S.shas.staff),
-      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, editorPwHash: localStorage.getItem('edit_pw') || '', assignments: S.assignments }, S.shas.schedule)
+      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, editorPwHash: localStorage.getItem('edit_pw') || '', leave: S.leave, assignments: S.assignments }, S.shas.schedule)
     ]);
     S.shas.staff = ns; S.shas.schedule = nsc;
     toast('Saved! Site updates in ~60 seconds.', 'success');
@@ -276,6 +296,9 @@ function renderCalendar() {
     const isToday = ds === today;
     const isSun   = d.getDay() === 0;
 
+    const holiday    = getHoliday(ds);
+    const leaveToday = S.leave.filter(l => l.date === ds);
+
     const branchRows = BRANCHES.map((branch, bi) => {
       const amList = S.assignments.filter(a => a.date===ds && a.shift==='AM' && a.branch===branch);
       const pmList = S.assignments.filter(a => a.date===ds && a.shift==='PM' && a.branch===branch);
@@ -296,9 +319,15 @@ function renderCalendar() {
       </div>`;
     }).join('');
 
+    const leaveCount = leaveToday.length
+      ? `<span class="cal-leave-badge">🏖️ ${leaveToday.length}</span>` : '';
+    const holidayLabel = holiday
+      ? `<div class="cal-holiday-name">${esc(holiday.name)}${holiday.approx?' *':''}</div>` : '';
+
     html += `
-      <div class="cal-cell${isToday?' today':''}${isSun?' sunday':''}" onclick="openDay('${ds}')">
-        <span class="cal-day-num">${day}</span>
+      <div class="cal-cell${isToday?' today':''}${isSun?' sunday':''}${holiday?' holiday':''}" onclick="openDay('${ds}')">
+        <div class="cal-cell-top"><span class="cal-day-num">${day}</span>${leaveCount}</div>
+        ${holidayLabel}
         <div class="cal-branch-rows">${branchRows}</div>
       </div>`;
   }
@@ -326,6 +355,50 @@ function renderDayBody() {
   const body = document.getElementById('dayBody');
   if (!ds) return;
 
+  const holiday   = getHoliday(ds);
+  const leaveList = S.leave.filter(l => l.date === ds);
+  const leaveIds  = new Set(leaveList.map(l => l.staffId));
+
+  // Holiday banner
+  const holidayBanner = holiday
+    ? `<div class="day-holiday-banner">🎉 Public Holiday — ${esc(holiday.name)}${holiday.approx ? ' <span class="approx-note">(date approx.)</span>' : ''}</div>`
+    : '';
+
+  // Leave section (always in edit mode; only when someone is on leave in view mode)
+  let leaveSection = '';
+  if (leaveList.length || S.editMode) {
+    const leaveChips = leaveList.map(l => {
+      const st  = S.staff.find(s => s.id === l.staffId);
+      const nm  = st ? st.name : l.staffId;
+      const rmv = S.editMode
+        ? `<button class="chip-x" onclick="removeLeave('${ds}','${esc(l.staffId)}')">×</button>`
+        : '';
+      return `<span class="chip leave">${esc(nm)}${rmv}</span>`;
+    }).join('');
+
+    const leaveAvail = S.staff.filter(s => !leaveIds.has(s.id));
+    const leavePicker = S.editMode ? `
+      <div class="picker-wrap" id="pw-leave">
+        <button class="add-btn leave-add" onclick="togglePicker('leave')">+ Mark Leave</button>
+        <div class="picker-dd hidden" id="pd-leave">
+          ${leaveAvail.length
+            ? leaveAvail.map(s =>
+                `<div class="picker-item" onclick="addLeave('${ds}','${esc(s.id)}')">${esc(s.name)}</div>`
+              ).join('')
+            : '<div class="picker-empty">All staff on leave</div>'}
+        </div>
+      </div>` : '';
+
+    const emptyMsg = !leaveList.length && !S.editMode ? '<span class="no-assign">None</span>' : '';
+
+    leaveSection = `
+      <div class="day-leave-section">
+        <span class="day-leave-label">🏖️ On Leave</span>
+        <div class="day-leave-chips">${emptyMsg}${leaveChips}${leavePicker}</div>
+      </div>`;
+  }
+
+  // Branch × shift grid
   const branchHdrs = BRANCHES.map((b, bi) => `
     <div class="day-col-hdr">
       <span class="b-dot" style="background:${branchColor(bi)}"></span>
@@ -336,15 +409,17 @@ function renderDayBody() {
     const cells = BRANCHES.map((branch, bi) => {
       const assigned    = S.assignments.filter(a => a.date===ds && a.shift===shift && a.branch===branch);
       const assignedIds = new Set(assigned.map(a => a.staffId));
-      const available   = S.staff.filter(s => !assignedIds.has(s.id));
+      // Exclude leave staff from the "add" picker
+      const available   = S.staff.filter(s => !assignedIds.has(s.id) && !leaveIds.has(s.id));
 
       const chips = assigned.map(a => {
-        const st  = S.staff.find(s => s.id===a.staffId);
-        const nm  = st ? st.name : a.staffId;
-        const rmv = S.editMode
+        const st      = S.staff.find(s => s.id === a.staffId);
+        const nm      = st ? st.name : a.staffId;
+        const onLeave = leaveIds.has(a.staffId);
+        const rmv     = S.editMode
           ? `<button class="chip-x" onclick="removeAssign('${ds}','${shift}','${esc(branch)}','${esc(a.staffId)}')">×</button>`
           : '';
-        return `<span class="chip ${shift.toLowerCase()}">${esc(nm)}${rmv}</span>`;
+        return `<span class="chip ${shift.toLowerCase()}${onLeave ? ' on-leave' : ''}" title="${onLeave ? 'On leave' : ''}">${esc(nm)}${onLeave ? ' 🏖️' : ''}${rmv}</span>`;
       }).join('');
 
       const picker = S.editMode ? `
@@ -372,7 +447,7 @@ function renderDayBody() {
       ${cells}`;
   }).join('');
 
-  body.innerHTML = `
+  body.innerHTML = holidayBanner + leaveSection + `
     <div class="day-grid" style="grid-template-columns:110px repeat(${BRANCHES.length},1fr)">
       <div class="day-col-hdr"></div>
       ${branchHdrs}
@@ -400,6 +475,20 @@ function removeAssign(date, shift, branch, staffId) {
   S.assignments = S.assignments.filter(
     a => !(a.date===date && a.shift===shift && a.branch===branch && a.staffId===staffId)
   );
+  renderDayBody();
+  renderCalendar();
+}
+
+function addLeave(date, staffId) {
+  if (!S.leave.some(l => l.date===date && l.staffId===staffId))
+    S.leave.push({ date, staffId });
+  document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
+  renderDayBody();
+  renderCalendar();
+}
+
+function removeLeave(date, staffId) {
+  S.leave = S.leave.filter(l => !(l.date===date && l.staffId===staffId));
   renderDayBody();
   renderCalendar();
 }
