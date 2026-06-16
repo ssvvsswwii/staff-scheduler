@@ -1,15 +1,16 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
-let BRANCHES  = ['Rimba Point', 'Healthy Holm Kiulap', 'Hua Ho Manggis'];
-const SHIFTS    = ['AM', 'PM'];
-const OWNER     = 'ssvvsswwii';
-const DOW       = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+let BRANCHES = ['Rimba Point', 'Healthy Holm Kiulap', 'Hua Ho Manggis'];
+const SHIFTS  = ['AM', 'PM'];
+const OWNER   = 'ssvvsswwii';
+const DOW     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const BRANCH_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4'];
+function branchColor(i) { return BRANCH_COLORS[i % BRANCH_COLORS.length]; }
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const S = {
   staff:       [],
   assignments: [],
   month:       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  branch:      BRANCHES[0],
   editMode:    false,
   github:      { token: '', repo: 'staff-scheduler' },
   shas:        { staff: null, schedule: null },
@@ -32,7 +33,7 @@ async function init() {
   document.getElementById('lockBtn').onclick     = handleLockBtn;
 
   renderMonthLabel();
-  renderBranchTabs();
+  renderBranchLegend();
   renderCalendar();
   updateEditUI();
   await loadPublicData();
@@ -50,11 +51,9 @@ async function loadPublicData() {
     if (scr.ok) {
       const d = await scr.json();
       S.assignments = d.assignments || [];
-      if (d.branches && d.branches.length) {
-        BRANCHES = d.branches;
-        if (!BRANCHES.includes(S.branch)) S.branch = BRANCHES[0];
-      }
+      if (d.branches && d.branches.length) BRANCHES = d.branches;
     }
+    renderBranchLegend();
     renderCalendar();
   } catch { /* files not yet available */ }
 }
@@ -123,13 +122,9 @@ async function hashPw(pw) {
 }
 
 function handleLockBtn() {
-  if (S.editMode) {
-    lockEdit();
-    return;
-  }
+  if (S.editMode) { lockEdit(); return; }
   const hasPw = !!localStorage.getItem('edit_pw');
   if (!hasPw) {
-    // First-time setup: no password yet, grant access directly
     S.editMode = true;
     sessionStorage.setItem('edit_mode', '1');
     updateEditUI();
@@ -184,7 +179,7 @@ function updateEditUI() {
     saveBtn.style.display = 'none';
     setBtn.style.display  = 'none';
   }
-  renderBranchTabs();
+  renderBranchLegend();
 }
 
 // ── Month navigation ──────────────────────────────────────────────────────────
@@ -195,11 +190,17 @@ function renderMonthLabel() {
     S.month.toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
 }
 
-// ── Calendar ──────────────────────────────────────────────────────────────────
-function renderBranchTabs() {
+// ── Branch legend ─────────────────────────────────────────────────────────────
+function renderBranchLegend() {
+  const legends = BRANCHES.map((b, i) => `
+    <div class="branch-legend">
+      <span class="legend-dot" style="background:${branchColor(i)}"></span>
+      <span>${esc(b)}</span>
+    </div>`).join('');
+
   const addBtn = S.editMode ? `
     <div class="branch-add-wrap" id="branchAddWrap">
-      <button class="branch-tab branch-add-btn" onclick="showBranchInput()">＋ Add Branch</button>
+      <button class="branch-add-btn" onclick="showBranchInput()">＋ Add Branch</button>
       <div class="branch-input-row hidden" id="branchInputRow">
         <input class="branch-input" id="branchNameInput" type="text" placeholder="Branch name"
                onkeydown="if(event.key==='Enter')confirmBranch();if(event.key==='Escape')hideBranchInput()">
@@ -208,10 +209,7 @@ function renderBranchTabs() {
       </div>
     </div>` : '';
 
-  document.getElementById('branchTabs').innerHTML =
-    BRANCHES.map((b, i) =>
-      `<button class="branch-tab${b === S.branch ? ' active' : ''}" onclick="selectBranch(${i})">${esc(b)}</button>`
-    ).join('') + addBtn;
+  document.getElementById('branchTabs').innerHTML = legends + addBtn;
 }
 
 function showBranchInput() {
@@ -231,14 +229,13 @@ function confirmBranch() {
   if (!name) { hideBranchInput(); return; }
   if (BRANCHES.includes(name)) { toast('Branch already exists', 'error'); return; }
   BRANCHES.push(name);
-  S.branch = name;
   hideBranchInput();
-  renderBranchTabs();
+  renderBranchLegend();
   renderCalendar();
   toast(`"${name}" added — click Save to keep it`, 'success');
 }
-function selectBranch(i) { S.branch = BRANCHES[i]; renderBranchTabs(); renderCalendar(); }
 
+// ── Utils ─────────────────────────────────────────────────────────────────────
 function isoDate(d) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
@@ -248,48 +245,58 @@ function initials(name) {
   return (name || '?').trim().split(/\s+/).map(w => w[0].toUpperCase()).join('').slice(0,2);
 }
 
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
 function renderCalendar() {
   const grid  = document.getElementById('calGrid');
   const year  = S.month.getFullYear();
   const mon   = S.month.getMonth();
   const today = isoDate(new Date());
 
-  // Week headers (Mon–Sun)
   let html = DOW.map(d => `<div class="cal-hdr">${d}</div>`).join('');
 
-  // Leading blank cells (Mon = 0)
   const firstDow = new Date(year, mon, 1).getDay();
   const offset   = firstDow === 0 ? 6 : firstDow - 1;
   for (let i = 0; i < offset; i++) html += `<div class="cal-cell empty"></div>`;
 
-  // Day cells
   const totalDays = new Date(year, mon + 1, 0).getDate();
   for (let day = 1; day <= totalDays; day++) {
     const d  = new Date(year, mon, day);
     const ds = isoDate(d);
-    const isToday  = ds === today;
-    const isSun    = d.getDay() === 0;
+    const isToday = ds === today;
+    const isSun   = d.getDay() === 0;
 
-    const amList = S.assignments.filter(a => a.date === ds && a.shift === 'AM' && a.branch === S.branch);
-    const pmList = S.assignments.filter(a => a.date === ds && a.shift === 'PM' && a.branch === S.branch);
-
-    const amChips = amList.map(a => {
-      const st = S.staff.find(s => s.id === a.staffId);
-      return `<span class="cal-chip am" title="${esc(st?.name || a.staffId)}">${esc(initials(st?.name || a.staffId))}</span>`;
-    }).join('');
-    const pmChips = pmList.map(a => {
-      const st = S.staff.find(s => s.id === a.staffId);
-      return `<span class="cal-chip pm" title="${esc(st?.name || a.staffId)}">${esc(initials(st?.name || a.staffId))}</span>`;
+    const branchRows = BRANCHES.map((branch, bi) => {
+      const amList = S.assignments.filter(a => a.date===ds && a.shift==='AM' && a.branch===branch);
+      const pmList = S.assignments.filter(a => a.date===ds && a.shift==='PM' && a.branch===branch);
+      if (!amList.length && !pmList.length) {
+        return `<div class="cal-branch-row"><span class="b-dot" style="background:${branchColor(bi)}"></span></div>`;
+      }
+      const amChips = amList.map(a => {
+        const st = S.staff.find(s => s.id===a.staffId);
+        return `<span class="cal-chip am" title="${esc(st?.name||a.staffId)}">${esc(initials(st?.name||a.staffId))}</span>`;
+      }).join('');
+      const pmChips = pmList.map(a => {
+        const st = S.staff.find(s => s.id===a.staffId);
+        return `<span class="cal-chip pm" title="${esc(st?.name||a.staffId)}">${esc(initials(st?.name||a.staffId))}</span>`;
+      }).join('');
+      return `<div class="cal-branch-row">
+        <span class="b-dot" style="background:${branchColor(bi)}"></span>
+        <div class="cal-chips">${amChips}${pmChips}</div>
+      </div>`;
     }).join('');
 
     html += `
-      <div class="cal-cell${isToday ? ' today' : ''}${isSun ? ' sunday' : ''}" onclick="openDay('${ds}')">
+      <div class="cal-cell${isToday?' today':''}${isSun?' sunday':''}" onclick="openDay('${ds}')">
         <span class="cal-day-num">${day}</span>
-        <div class="cal-chips">${amChips}${pmChips}</div>
+        <div class="cal-branch-rows">${branchRows}</div>
       </div>`;
   }
 
-  // Trailing blanks
   const used = offset + totalDays;
   const trail = used % 7 === 0 ? 0 : 7 - (used % 7);
   for (let i = 0; i < trail; i++) html += `<div class="cal-cell empty"></div>`;
@@ -313,58 +320,72 @@ function renderDayBody() {
   const body = document.getElementById('dayBody');
   if (!ds) return;
 
-  body.innerHTML = '<div class="shift-blocks">' + SHIFTS.map(shift => {
-    const assigned    = S.assignments.filter(a => a.date === ds && a.shift === shift && a.branch === S.branch);
-    const assignedIds = new Set(assigned.map(a => a.staffId));
-    const available   = S.staff.filter(s => !assignedIds.has(s.id));
+  const branchHdrs = BRANCHES.map((b, bi) => `
+    <div class="day-col-hdr">
+      <span class="b-dot" style="background:${branchColor(bi)}"></span>
+      ${esc(b)}
+    </div>`).join('');
 
-    const chips = assigned.map(a => {
-      const st  = S.staff.find(s => s.id === a.staffId);
-      const nm  = st ? st.name : a.staffId;
-      const rmv = S.editMode
-        ? `<button class="chip-x" onclick="removeAssign('${ds}','${shift}','${esc(S.branch)}','${esc(a.staffId)}')">×</button>`
-        : '';
-      return `<span class="chip ${shift.toLowerCase()}">${esc(nm)}${rmv}</span>`;
+  const shiftRows = SHIFTS.map(shift => {
+    const cells = BRANCHES.map((branch, bi) => {
+      const assigned    = S.assignments.filter(a => a.date===ds && a.shift===shift && a.branch===branch);
+      const assignedIds = new Set(assigned.map(a => a.staffId));
+      const available   = S.staff.filter(s => !assignedIds.has(s.id));
+
+      const chips = assigned.map(a => {
+        const st  = S.staff.find(s => s.id===a.staffId);
+        const nm  = st ? st.name : a.staffId;
+        const rmv = S.editMode
+          ? `<button class="chip-x" onclick="removeAssign('${ds}','${shift}','${esc(branch)}','${esc(a.staffId)}')">×</button>`
+          : '';
+        return `<span class="chip ${shift.toLowerCase()}">${esc(nm)}${rmv}</span>`;
+      }).join('');
+
+      const picker = S.editMode ? `
+        <div class="picker-wrap" id="pw-${shift}-${bi}">
+          <button class="add-btn" onclick="togglePicker('${shift}-${bi}')">+ Add</button>
+          <div class="picker-dd hidden" id="pd-${shift}-${bi}">
+            ${available.length
+              ? available.map(s =>
+                  `<div class="picker-item" onclick="addAssign('${ds}','${shift}','${esc(branch)}','${esc(s.id)}')">${esc(s.name)}</div>`
+                ).join('')
+              : `<div class="picker-empty">All staff assigned</div>`}
+          </div>
+        </div>` : '';
+
+      const empty = !assigned.length && !S.editMode ? `<span class="no-assign">—</span>` : '';
+
+      return `<div class="day-grid-cell">${chips}${empty}${picker}</div>`;
     }).join('');
 
-    const picker = S.editMode ? `
-      <div class="picker-wrap" id="pw-${shift}">
-        <button class="add-btn" onclick="togglePicker('${shift}')">+ Add</button>
-        <div class="picker-dd hidden" id="pd-${shift}">
-          ${available.length
-            ? available.map(s =>
-                `<div class="picker-item" onclick="addAssign('${ds}','${shift}','${esc(S.branch)}','${esc(s.id)}')">${esc(s.name)}</div>`
-              ).join('')
-            : `<div class="picker-empty">All staff assigned</div>`}
-        </div>
-      </div>` : '';
-
-    const empty = !assigned.length && !S.editMode
-      ? `<span class="no-assign">No one assigned</span>` : '';
-
     return `
-      <div class="shift-block">
-        <div class="shift-block-hdr">
-          <span class="shift-badge ${shift.toLowerCase()}">${shift}</span>
-          <span>${shift === 'AM' ? 'Morning' : 'Afternoon'}</span>
-        </div>
-        <div class="chips-row">${chips}${empty}${picker}</div>
-      </div>`;
-  }).join('') + '</div>';
+      <div class="day-shift-lbl">
+        <span class="shift-badge ${shift.toLowerCase()}">${shift}</span>
+        ${shift==='AM' ? 'Morning' : 'Afternoon'}
+      </div>
+      ${cells}`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="day-grid" style="grid-template-columns:110px repeat(${BRANCHES.length},1fr)">
+      <div class="day-col-hdr"></div>
+      ${branchHdrs}
+      ${shiftRows}
+    </div>`;
 }
 
-function togglePicker(shift) {
-  SHIFTS.forEach(s => {
-    const el = document.getElementById(`pd-${s}`);
-    if (el && s !== shift) el.classList.add('hidden');
+function togglePicker(id) {
+  const target = document.getElementById(`pd-${id}`);
+  document.querySelectorAll('.picker-dd').forEach(el => {
+    if (el !== target) el.classList.add('hidden');
   });
-  document.getElementById(`pd-${shift}`)?.classList.toggle('hidden');
+  target?.classList.toggle('hidden');
 }
 
 function addAssign(date, shift, branch, staffId) {
   if (!S.assignments.some(a => a.date===date && a.shift===shift && a.branch===branch && a.staffId===staffId))
     S.assignments.push({ date, shift, branch, staffId });
-  document.getElementById(`pd-${shift}`)?.classList.add('hidden');
+  document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
   renderDayBody();
   renderCalendar();
 }
@@ -460,7 +481,7 @@ function addStaff() {
   const name = document.getElementById('newStaffName').value.trim();
   if (!id || !name) { toast('ID and Name required', 'error'); return; }
   if (S.staff.find(s => s.id === id)) { toast('ID already exists', 'error'); return; }
-  S.staff.push({ id, name, branch: '' });
+  S.staff.push({ id, name });
   document.getElementById('newStaffId').value = '';
   document.getElementById('newStaffName').value = '';
   document.getElementById('staffList').innerHTML = staffListHTML();
@@ -494,12 +515,6 @@ function toast(msg, type = '') {
   el.className = `toast${type ? ' '+type : ''}`;
   clearTimeout(_tt);
   _tt = setTimeout(() => el.classList.add('hidden'), 3000);
-}
-
-// ── Utils ─────────────────────────────────────────────────────────────────────
-function esc(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
