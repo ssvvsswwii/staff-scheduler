@@ -244,10 +244,9 @@ main { padding: 1rem; }
 }
 .add-btn:hover { background: var(--primary-light); border-color: var(--primary); }
 .picker-dd {
-  position: absolute; top: calc(100% + 5px); left: 0;
   background: white; border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0,0,0,.12);
-  min-width: 180px; max-height: 210px; overflow-y: auto; z-index: 200;
+  min-width: 180px; max-height: 210px; overflow-y: auto; z-index: 9999;
 }
 .picker-dd.hidden { display: none; }
 .picker-item { padding: .55rem .9rem; font-size: .875rem; cursor: pointer; transition: background .1s; }

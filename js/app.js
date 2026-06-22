@@ -456,11 +456,19 @@ function renderDayBody() {
 }
 
 function togglePicker(id) {
-  const target = document.getElementById(`pd-${id}`);
-  document.querySelectorAll('.picker-dd').forEach(el => {
-    if (el !== target) el.classList.add('hidden');
-  });
-  target?.classList.toggle('hidden');
+  const target  = document.getElementById(`pd-${id}`);
+  const wasHidden = target.classList.contains('hidden');
+  document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
+  if (wasHidden) {
+    // Use fixed positioning so no overflow container clips the dropdown
+    const btn = document.getElementById(`pw-${id}`).querySelector('button');
+    const r   = btn.getBoundingClientRect();
+    target.style.position = 'fixed';
+    target.style.top  = (r.bottom + 4) + 'px';
+    target.style.left = r.left + 'px';
+    target.style.width = '';
+    target.classList.remove('hidden');
+  }
 }
 
 function addAssign(date, shift, branch, staffId) {
