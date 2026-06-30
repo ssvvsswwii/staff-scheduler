@@ -124,7 +124,7 @@ async function ghPut(path, content, sha) {
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 async function saveData() {
-  if (!S.github.token) { toast('Enter your GitHub PAT in Settings first', 'error'); openSettings(); return; }
+  if (!S.github.token) { toast('No save token — open ⚙️ Settings and paste the token from your admin', 'error'); openSettings(); return; }
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
   try {
@@ -521,17 +521,25 @@ function updateRemark(date, shift, text) {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function openSettings() {
+  const hasToken = !!S.github.token;
   document.getElementById('settingsBody').innerHTML = `
     <div class="settings-section">
-      <div class="settings-title">GitHub Connection</div>
+      <div class="settings-title">Save Token</div>
+      <p class="hint" style="margin-bottom:.75rem">
+        ${hasToken
+          ? '✅ Token is set. Use the <strong>Copy</strong> button to share it with your editing team — they paste it here in their Settings so they can save too.'
+          : '⚠️ No token set. Ask your admin for the save token and paste it below.'}
+      </p>
+      <div class="form-group">
+        <label class="label">GitHub Personal Access Token (PAT)</label>
+        <div class="form-row">
+          <input id="cfgToken" class="input" type="password" value="${esc(S.github.token)}" placeholder="ghp_… (get this from your admin)" style="flex:1">
+          ${hasToken ? `<button class="btn btn-sm" style="flex:none;white-space:nowrap" onclick="copyToken()">📋 Copy</button>` : ''}
+        </div>
+      </div>
       <div class="form-group">
         <label class="label">Repository Name</label>
         <input id="cfgRepo" class="input" value="${esc(S.github.repo)}" placeholder="staff-scheduler">
-      </div>
-      <div class="form-group">
-        <label class="label">Personal Access Token (PAT)</label>
-        <input id="cfgToken" class="input" type="password" value="${esc(S.github.token)}" placeholder="ghp_…">
-        <p class="hint">Needs <code>repo</code> + <code>workflow</code> scopes.</p>
       </div>
       <button class="btn btn-primary btn-sm" onclick="saveGitHubSettings()">Save</button>
     </div>
@@ -583,7 +591,22 @@ function saveGitHubSettings() {
   S.github.token = token; S.github.repo = repo;
   localStorage.setItem('gh_token', token);
   localStorage.setItem('gh_repo',  repo);
-  toast('GitHub settings saved', 'success');
+  toast('Settings saved', 'success');
+  openSettings(); // refresh panel so Copy button appears if token was just entered
+}
+
+function copyToken() {
+  const token = S.github.token;
+  if (!token) return;
+  navigator.clipboard.writeText(token).then(() => {
+    toast('Token copied — send it to your colleague (WhatsApp, etc.)', 'success');
+  }).catch(() => {
+    const el = document.getElementById('cfgToken');
+    el.type = 'text'; el.select();
+    try { document.execCommand('copy'); } catch {}
+    el.type = 'password';
+    toast('Token copied', 'success');
+  });
 }
 
 async function savePassword() {
