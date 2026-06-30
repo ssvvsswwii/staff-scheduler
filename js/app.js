@@ -30,6 +30,7 @@ const S = {
   staff:       [],
   assignments: [],
   leave:       [],
+  remarks:     {},   // { 'YYYY-MM-DD': { AM: '...', PM: '...' } }
   month:       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   editMode:    false,
   dataLoaded:  false,
@@ -73,6 +74,7 @@ async function loadPublicData() {
       const d = await scr.json();
       S.assignments = d.assignments || [];
       S.leave       = d.leave       || [];
+      S.remarks     = d.remarks     || {};
       if (d.branches && d.branches.length) BRANCHES = d.branches;
       if (d.editorPwHash) localStorage.setItem('edit_pw', d.editorPwHash);
     }
@@ -131,7 +133,7 @@ async function saveData() {
     if (scr) S.shas.schedule = scr.sha;
     const [ns, nsc] = await Promise.all([
       ghPut('data/staff.json',    S.staff,                                        S.shas.staff),
-      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, editorPwHash: localStorage.getItem('edit_pw') || '', leave: S.leave, assignments: S.assignments }, S.shas.schedule)
+      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, editorPwHash: localStorage.getItem('edit_pw') || '', leave: S.leave, remarks: S.remarks, assignments: S.assignments }, S.shas.schedule)
     ]);
     S.shas.staff = ns; S.shas.schedule = nsc;
     toast('Saved! Site updates in ~60 seconds.', 'success');
@@ -320,7 +322,7 @@ function renderCalendar() {
     }).join('');
 
     const leaveCount = leaveToday.length
-      ? `<span class="cal-leave-badge">🏖️ ${leaveToday.length}</span>` : '';
+      ? `<span class="cal-leave-badge">🏖️ Off ${leaveToday.length}</span>` : '';
     const holidayLabel = holiday
       ? `<div class="cal-holiday-name">${esc(holiday.name)}${holiday.approx?' *':''}</div>` : '';
 
@@ -393,7 +395,7 @@ function renderDayBody() {
 
     leaveSection = `
       <div class="day-leave-section">
-        <span class="day-leave-label">🏖️ On Leave</span>
+        <span class="day-leave-label">🏖️ Off</span>
         <div class="day-leave-chips">${emptyMsg}${leaveChips}${leavePicker}</div>
       </div>`;
   }
@@ -409,7 +411,6 @@ function renderDayBody() {
     const cells = BRANCHES.map((branch, bi) => {
       const assigned    = S.assignments.filter(a => a.date===ds && a.shift===shift && a.branch===branch);
       const assignedIds = new Set(assigned.map(a => a.staffId));
-      // Exclude leave staff from the "add" picker
       const available   = S.staff.filter(s => !assignedIds.has(s.id) && !leaveIds.has(s.id));
 
       const chips = assigned.map(a => {
@@ -419,7 +420,7 @@ function renderDayBody() {
         const rmv     = S.editMode
           ? `<button class="chip-x" onclick="removeAssign('${ds}','${shift}','${esc(branch)}','${esc(a.staffId)}')">×</button>`
           : '';
-        return `<span class="chip ${shift.toLowerCase()}${onLeave ? ' on-leave' : ''}" title="${onLeave ? 'On leave' : ''}">${esc(nm)}${onLeave ? ' 🏖️' : ''}${rmv}</span>`;
+        return `<span class="chip ${shift.toLowerCase()}${onLeave ? ' on-leave' : ''}" title="${onLeave ? 'Off' : ''}">${esc(nm)}${onLeave ? ' 🏖️' : ''}${rmv}</span>`;
       }).join('');
 
       const picker = S.editMode ? `
@@ -439,18 +440,30 @@ function renderDayBody() {
       return `<div class="day-grid-cell">${chips}${empty}${picker}</div>`;
     }).join('');
 
+    // Remark cell for this shift
+    const remarkText = (S.remarks[ds] || {})[shift] || '';
+    const remarkCell = S.editMode
+      ? `<div class="day-grid-cell remark-cell">
+           <textarea class="remark-input" placeholder="Add note…"
+             oninput="updateRemark('${ds}','${shift}',this.value)">${esc(remarkText)}</textarea>
+         </div>`
+      : `<div class="day-grid-cell remark-cell">
+           ${remarkText ? `<span class="remark-text">${esc(remarkText)}</span>` : '<span class="no-assign">—</span>'}
+         </div>`;
+
     return `
       <div class="day-shift-lbl">
         <span class="shift-badge ${shift.toLowerCase()}">${shift}</span>
         ${shift==='AM' ? 'Morning' : 'Afternoon'}
       </div>
-      ${cells}`;
+      ${cells}${remarkCell}`;
   }).join('');
 
   body.innerHTML = holidayBanner + leaveSection + `
-    <div class="day-grid" style="grid-template-columns:110px repeat(${BRANCHES.length},1fr)">
-      <div class="day-col-hdr"></div>
+    <div class="day-grid" style="grid-template-columns:110px repeat(${BRANCHES.length},1fr) 160px">
+      <div class="day-col-hdr">Time</div>
       ${branchHdrs}
+      <div class="day-col-hdr">Remark</div>
       ${shiftRows}
     </div>`;
 }
@@ -499,6 +512,11 @@ function removeLeave(date, staffId) {
   S.leave = S.leave.filter(l => !(l.date===date && l.staffId===staffId));
   renderDayBody();
   renderCalendar();
+}
+
+function updateRemark(date, shift, text) {
+  if (!S.remarks[date]) S.remarks[date] = {};
+  S.remarks[date][shift] = text;
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
