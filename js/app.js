@@ -390,7 +390,7 @@ function renderCalendar() {
     const holidayLabel = holiday
       ? `<div class="cal-holiday-name">${esc(holiday.name)}${holiday.approx?' *':''}</div>` : '';
     const eventBadge = eventText
-      ? `<div class="cal-event-badge">📌 ${esc(eventText)}</div>` : '';
+      ? `<div class="cal-event-badge">📝 ${esc(eventText)}</div>` : '';
 
     html += `
       <div class="cal-cell${isToday?' today':''}${isSun?' sunday':''}${holiday?' holiday':''}" onclick="openDay('${ds}')">
@@ -524,9 +524,9 @@ function renderDayBody() {
   const eventText = S.remarks[ds] || '';
   const eventRow = S.editMode
     ? `<div class="day-event-row">
-         <div class="day-event-label">📌 Event</div>
+         <div class="day-event-label">📌 Remark</div>
          <div class="day-event-cell">
-           <input class="event-input" type="text" placeholder="Add event or note — press Enter to confirm"
+           <input class="event-input" type="text" placeholder="Add remark — press Enter to confirm"
              value="${esc(eventText)}"
              oninput="updateRemark('${ds}',this.value)"
              onkeydown="if(event.key==='Enter'){updateRemark('${ds}',this.value);renderCalendar();this.blur();event.preventDefault();}">
@@ -534,7 +534,7 @@ function renderDayBody() {
        </div>`
     : (eventText
         ? `<div class="day-event-row">
-             <div class="day-event-label">📌 Event</div>
+             <div class="day-event-label">📌 Remark</div>
              <div class="day-event-cell"><span class="event-text">${esc(eventText)}</span></div>
            </div>`
         : '');
