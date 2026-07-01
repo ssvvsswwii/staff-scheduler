@@ -8,7 +8,7 @@ function branchColor(i) { return BRANCH_COLORS[i % BRANCH_COLORS.length]; }
 const LEAVE_TYPES = [
   'Annual Leave', 'Bereavement Leave', 'Compassionate Leave',
   'Hospitalized Leave', 'In-Lieu', 'Maternity Leave', 'Matrimonial Leave',
-  'Medical Leave', 'Paternity Leave', 'Unpaid Leave'
+  'Medical Leave', 'Off Day', 'Paternity Leave', 'Unpaid Leave'
 ];
 
 // Brunei public holidays 2026
