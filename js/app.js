@@ -495,8 +495,10 @@ function renderDayBody() {
     ? `<div class="day-event-row">
          <div class="day-event-label">📌 Event</div>
          <div class="day-event-cell">
-           <textarea class="event-input" placeholder="Add event or note for this day…"
-             oninput="updateRemark('${ds}',this.value)">${esc(eventText)}</textarea>
+           <input class="event-input" type="text" placeholder="Add event or note — press Enter to confirm"
+             value="${esc(eventText)}"
+             oninput="updateRemark('${ds}',this.value)"
+             onkeydown="if(event.key==='Enter'){updateRemark('${ds}',this.value);renderCalendar();this.blur();event.preventDefault();}">
          </div>
        </div>`
     : (eventText
