@@ -359,12 +359,12 @@ function renderCalendar() {
         return `<div class="cal-branch-row"><span class="b-dot" style="background:${branchColor(bi)}"></span></div>`;
       }
       const amChips = amList.map(a => {
-        const st = S.staff.find(s => s.id===a.staffId);
-        return `<span class="cal-chip am" title="${esc(st?.name||a.staffId)}">${esc(initials(st?.name||a.staffId))}</span>`;
+        const nm = S.staff.find(s => s.id===a.staffId)?.name || a.staffId;
+        return `<span class="cal-chip am" title="${esc(nm)}">${esc(nm)}</span>`;
       }).join('');
       const pmChips = pmList.map(a => {
-        const st = S.staff.find(s => s.id===a.staffId);
-        return `<span class="cal-chip pm" title="${esc(st?.name||a.staffId)}">${esc(initials(st?.name||a.staffId))}</span>`;
+        const nm = S.staff.find(s => s.id===a.staffId)?.name || a.staffId;
+        return `<span class="cal-chip pm" title="${esc(nm)}">${esc(nm)}</span>`;
       }).join('');
       return `<div class="cal-branch-row">
         <span class="b-dot" style="background:${branchColor(bi)}"></span>
