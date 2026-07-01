@@ -421,7 +421,7 @@ function renderDayBody() {
     const addForm = S.editMode ? `
       <div class="leave-add-form">
         <select class="leave-select" id="leaveStaffSel">
-          <option value="">Who is off…</option>
+          <option value="">OFF</option>
           ${leaveAvail.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}
         </select>
         <select class="leave-select" id="leaveTypeSel">
