@@ -204,7 +204,7 @@ main { padding: 1rem; }
 }
 .day-event-cell { flex: 1; }
 .event-input {
-  width: 100%;
+  width: 100%; min-height: 56px; resize: vertical;
   border: 1px solid var(--border); border-radius: 6px;
   padding: .45rem .65rem; font-size: .875rem; font-family: inherit;
   color: var(--text); outline: none; background: white; transition: border-color .15s;
