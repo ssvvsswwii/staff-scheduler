@@ -483,6 +483,7 @@ function renderDayBody() {
     const cells = BRANCHES.map((branch, bi) => {
       const assigned    = S.assignments.filter(a => a.date===ds && a.shift===shift && a.branch===branch);
       const assignedIds = new Set(assigned.map(a => a.staffId));
+      // Only hide staff already in THIS branch-shift, not other branches — staff can move between branches
       const available   = S.staff.filter(s => !assignedIds.has(s.id) && !leaveIds.has(s.id));
 
       const chips = assigned.map(a => {
@@ -570,32 +571,19 @@ function togglePicker(id) {
 }
 
 function addAssign(date, shift, branch, staffId) {
-  const conflict = S.assignments.find(a => a.date===date && a.shift===shift && a.staffId===staffId && a.branch!==branch);
-  if (conflict) return { ok: false, reason: conflict.branch };
   if (!S.assignments.some(a => a.date===date && a.shift===shift && a.branch===branch && a.staffId===staffId))
     S.assignments.push({ date, shift, branch, staffId });
-  return { ok: true };
 }
 
 function addChecked(date, shift, branch, pickerId) {
   const dd = document.getElementById('pd-' + pickerId);
   const checked = [...dd.querySelectorAll('input[type=checkbox]:checked')];
   if (!checked.length) { toast('Tick at least one staff member', 'error'); return; }
-
-  const conflicts = [];
-  checked.forEach(cb => {
-    const result = addAssign(date, shift, branch, cb.value);
-    if (!result.ok) {
-      const nm = S.staff.find(s => s.id===cb.value)?.name || cb.value;
-      conflicts.push(nm + ' (already at ' + result.reason + ')');
-    }
-  });
-
+  checked.forEach(cb => addAssign(date, shift, branch, cb.value));
   document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
   markDirty();
   renderDayBody();
   renderCalendar();
-  if (conflicts.length) toast('Skipped: ' + conflicts.join(', '), 'error');
 }
 
 function removeAssign(date, shift, branch, staffId) {
