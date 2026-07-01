@@ -74,6 +74,7 @@ const S = {
   month:       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   editMode:    false,
   dataLoaded:  false,
+  dirty:       false,
   selectedDay: null
 };
 
@@ -82,6 +83,10 @@ async function init() {
   if (sessionStorage.getItem('edit_mode') === '1') {
     S.editMode = true;
   }
+
+  window.addEventListener('beforeunload', e => {
+    if (S.dirty && S.editMode) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   document.getElementById('prevBtn').onclick     = prevMonth;
   document.getElementById('nextBtn').onclick     = nextMonth;
@@ -166,6 +171,8 @@ async function saveData() {
     if (pwHash) settingsRows.push({ key: 'editorPwHash', value: pwHash });
     await sbUpsert('settings', settingsRows);
 
+    S.dirty = false;
+    updateSaveBtn();
     toast('Saved!', 'success');
   } catch (e) {
     toast('Save failed: ' + e.message, 'error');
@@ -224,22 +231,32 @@ function lockEdit() {
 }
 
 function updateEditUI() {
-  const badge   = document.getElementById('editBadge');
   const lockBtn = document.getElementById('lockBtn');
   const saveBtn = document.getElementById('saveBtn');
   const setBtn  = document.getElementById('settingsBtn');
   if (S.editMode) {
-    badge.classList.remove('hidden');
     lockBtn.textContent = '🔓 Lock';
     saveBtn.style.display = '';
     setBtn.style.display  = '';
   } else {
-    badge.classList.add('hidden');
     lockBtn.textContent = '🔒 Unlock';
     saveBtn.style.display = 'none';
     setBtn.style.display  = 'none';
   }
+  updateSaveBtn();
   renderBranchLegend();
+}
+
+function markDirty() {
+  S.dirty = true;
+  updateSaveBtn();
+}
+
+function updateSaveBtn() {
+  const btn = document.getElementById('saveBtn');
+  if (!btn) return;
+  btn.textContent = S.dirty ? '💾 Save ●' : '💾 Save';
+  btn.classList.toggle('dirty', S.dirty);
 }
 
 // ── Month navigation ──────────────────────────────────────────────────────────
@@ -290,6 +307,7 @@ function confirmBranch() {
   if (BRANCHES.includes(name)) { toast('Branch already exists', 'error'); return; }
   BRANCHES.push(name);
   hideBranchInput();
+  markDirty();
   renderBranchLegend();
   renderCalendar();
   toast('"' + name + '" added — click Save to keep it', 'success');
@@ -533,9 +551,17 @@ function togglePicker(id) {
 }
 
 function addAssign(date, shift, branch, staffId) {
+  const conflict = S.assignments.find(a => a.date===date && a.shift===shift && a.staffId===staffId && a.branch!==branch);
+  if (conflict) {
+    const nm = S.staff.find(s => s.id===staffId)?.name || staffId;
+    toast(nm + ' is already on ' + shift + ' at ' + conflict.branch, 'error');
+    document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
+    return;
+  }
   if (!S.assignments.some(a => a.date===date && a.shift===shift && a.branch===branch && a.staffId===staffId))
     S.assignments.push({ date, shift, branch, staffId });
   document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
+  markDirty();
   renderDayBody();
   renderCalendar();
 }
@@ -544,6 +570,7 @@ function removeAssign(date, shift, branch, staffId) {
   S.assignments = S.assignments.filter(
     a => !(a.date===date && a.shift===shift && a.branch===branch && a.staffId===staffId)
   );
+  markDirty();
   renderDayBody();
   renderCalendar();
 }
@@ -561,18 +588,21 @@ function submitLeave(date) {
 function addLeave(date, staffId, leaveType) {
   S.leave = S.leave.filter(l => !(l.date === date && l.staffId === staffId));
   S.leave.push({ date, staffId, leaveType: leaveType || 'Annual Leave' });
+  markDirty();
   renderDayBody();
   renderCalendar();
 }
 
 function removeLeave(date, staffId) {
   S.leave = S.leave.filter(l => !(l.date===date && l.staffId===staffId));
+  markDirty();
   renderDayBody();
   renderCalendar();
 }
 
 function updateRemark(date, text) {
   S.remarks[date] = text;
+  markDirty();
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -597,8 +627,8 @@ function openSettings() {
     <div class="settings-section">
       <div class="settings-title">Staff Members</div>
       <div class="form-row" style="margin-bottom:0.75rem">
-        <input id="newStaffId"   class="input" type="text" placeholder="ID" style="max-width:80px;flex:none">
-        <input id="newStaffName" class="input" type="text" placeholder="Full name">
+        <input id="newStaffName" class="input" type="text" placeholder="Full name"
+               onkeydown="if(event.key==='Enter')addStaff()">
         <button class="btn btn-primary btn-sm" onclick="addStaff()" style="flex:none">+ Add</button>
       </div>
       <div id="staffList">${staffListHTML()}</div>
@@ -611,7 +641,6 @@ function staffListHTML() {
   if (!S.staff.length) return '<p class="empty-state">No staff yet.</p>';
   return S.staff.map(s => `
     <div class="staff-item">
-      <span class="staff-id">${esc(s.id)}</span>
       <span class="staff-name">${esc(s.name)}</span>
       <button class="btn btn-danger btn-sm" onclick="removeStaff('${esc(s.id)}')">Remove</button>
     </div>`).join('');
@@ -629,14 +658,14 @@ async function savePassword() {
 }
 
 function addStaff() {
-  const id   = document.getElementById('newStaffId').value.trim();
   const name = document.getElementById('newStaffName').value.trim();
-  if (!id || !name) { toast('ID and Name required', 'error'); return; }
-  if (S.staff.find(s => s.id === id)) { toast('ID already exists', 'error'); return; }
+  if (!name) { toast('Enter a name', 'error'); return; }
+  const maxId = S.staff.reduce((m, s) => Math.max(m, parseInt(s.id, 10) || 0), 0);
+  const id = String(maxId + 1);
   S.staff.push({ id, name });
-  document.getElementById('newStaffId').value = '';
   document.getElementById('newStaffName').value = '';
   document.getElementById('staffList').innerHTML = staffListHTML();
+  markDirty();
   toast(name + ' added', 'success');
 }
 
@@ -644,7 +673,9 @@ function removeStaff(id) {
   const s = S.staff.find(x => x.id === id);
   S.staff       = S.staff.filter(x => x.id !== id);
   S.assignments = S.assignments.filter(a => a.staffId !== id);
+  S.leave       = S.leave.filter(l => l.staffId !== id);
   document.getElementById('staffList').innerHTML = staffListHTML();
+  markDirty();
   renderCalendar();
   if (s) toast(s.name + ' removed');
 }
