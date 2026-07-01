@@ -1,13 +1,17 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
 let BRANCHES = ['Rimba Point', 'Healthy Holm Kiulap', 'Hua Ho Manggis'];
 const SHIFTS  = ['AM', 'PM'];
-const OWNER   = 'ssvvsswwii';
 const DOW     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const BRANCH_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4'];
 function branchColor(i) { return BRANCH_COLORS[i % BRANCH_COLORS.length]; }
 
+const LEAVE_TYPES = [
+  'Annual Leave', 'Bereavement Leave', 'Compassionate Leave',
+  'Hospitalized Leave', 'In-Lieu', 'Maternity Leave', 'Matrimonial Leave',
+  'Medical Leave', 'Paternity Leave', 'Unpaid Leave'
+];
+
 // Brunei public holidays 2026
-// Fixed dates are exact. Islamic dates (marked ~) are approximate (±1 day, subject to moon sighting).
 const BRUNEI_HOLIDAYS = [
   { date: '2026-01-01', name: "New Year's Day" },
   { date: '2026-01-16', name: "Isra' Mi'raj", approx: true },
@@ -25,25 +29,56 @@ const BRUNEI_HOLIDAYS = [
 ];
 function getHoliday(ds) { return BRUNEI_HOLIDAYS.find(h => h.date === ds) || null; }
 
+// ── Supabase ──────────────────────────────────────────────────────────────────
+const SB_URL = 'https://vdwpybgfhymjfqgsvidl.supabase.co/rest/v1';
+const SB_KEY = 'sb_publishable_Ds2R9f1isRnliTXqlrdA2A_ycSZ1yNT';
+
+function sbHeaders(extra) {
+  return Object.assign({
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    'Content-Type': 'application/json'
+  }, extra || {});
+}
+
+async function sbGet(table) {
+  const res = await fetch(SB_URL + '/' + table + '?select=*', { headers: sbHeaders() });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || 'Load failed: ' + table); }
+  return res.json();
+}
+
+async function sbUpsert(table, rows) {
+  if (!rows.length) return;
+  const res = await fetch(SB_URL + '/' + table, {
+    method: 'POST',
+    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify(rows)
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || 'Save failed: ' + table); }
+}
+
+async function sbClear(table, filter) {
+  const res = await fetch(SB_URL + '/' + table + '?' + filter, {
+    method: 'DELETE',
+    headers: sbHeaders({ 'Prefer': 'return=minimal' })
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || 'Clear failed: ' + table); }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const S = {
   staff:       [],
   assignments: [],
-  leave:       [],
-  remarks:     {},   // { 'YYYY-MM-DD': { AM: '...', PM: '...' } }
+  leave:       [],    // [{ date, staffId, leaveType }]
+  remarks:     {},    // { 'YYYY-MM-DD': 'text' }  — one event per day
   month:       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   editMode:    false,
   dataLoaded:  false,
-  github:      { token: '', repo: 'staff-scheduler' },
-  shas:        { staff: null, schedule: null },
   selectedDay: null
 };
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function init() {
-  S.github.token = localStorage.getItem('gh_token') || '';
-  S.github.repo  = localStorage.getItem('gh_repo')  || 'staff-scheduler';
-
   if (sessionStorage.getItem('edit_mode') === '1') {
     S.editMode = true;
   }
@@ -61,84 +96,83 @@ async function init() {
   await loadPublicData();
 }
 
-// ── Load public data (static files on GitHub Pages) ──────────────────────────
+// ── Load data from Supabase ───────────────────────────────────────────────────
 async function loadPublicData() {
   try {
-    const bust = `?t=${Date.now()}`;
-    const [sr, scr] = await Promise.all([
-      fetch(`./data/staff.json${bust}`,    { cache: 'no-cache' }),
-      fetch(`./data/schedule.json${bust}`, { cache: 'no-cache' })
+    const [staffData, assignData, leaveData, remarkData, settingsData] = await Promise.all([
+      sbGet('staff'),
+      sbGet('assignments'),
+      sbGet('leave_days'),
+      sbGet('remarks'),
+      sbGet('settings')
     ]);
-    if (sr.ok)  S.staff = await sr.json();
-    if (scr.ok) {
-      const d = await scr.json();
-      S.assignments = d.assignments || [];
-      S.leave       = d.leave       || [];
-      S.remarks     = d.remarks     || {};
-      if (d.branches && d.branches.length) BRANCHES = d.branches;
-      if (d.editorPwHash) localStorage.setItem('edit_pw', d.editorPwHash);
-    }
+
+    S.staff       = staffData;
+    S.assignments = assignData.map(a => ({ date: a.date, shift: a.shift, branch: a.branch, staffId: a.staff_id }));
+    S.leave       = leaveData.map(l => ({ date: l.date, staffId: l.staff_id, leaveType: l.leave_type || 'Annual Leave' }));
+
+    S.remarks = {};
+    remarkData.forEach(r => { S.remarks[r.date] = r.text; });
+
+    settingsData.forEach(s => {
+      if (s.key === 'branches') {
+        try { const b = JSON.parse(s.value); if (b.length) BRANCHES = b; } catch {}
+      }
+      if (s.key === 'editorPwHash' && s.value) {
+        localStorage.setItem('edit_pw', s.value);
+      }
+    });
+
     S.dataLoaded = true;
     renderBranchLegend();
     renderCalendar();
-  } catch { S.dataLoaded = true; /* files not yet available */ }
+  } catch (e) {
+    S.dataLoaded = true;
+    toast('Could not load data — check your connection', 'error');
+  }
 }
 
-// ── GitHub API ────────────────────────────────────────────────────────────────
-function ghHeaders() {
-  return {
-    'Authorization': `Bearer ${S.github.token}`,
-    'Accept': 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28'
-  };
-}
-function repoUrl(path) {
-  return `https://api.github.com/repos/${OWNER}/${S.github.repo}/contents/${path}`;
-}
-async function ghGet(path) {
-  const res = await fetch(repoUrl(path), { headers: ghHeaders() });
-  if (res.status === 404) return null;
-  if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
-  const j = await res.json();
-  return { data: JSON.parse(atob(j.content.replace(/\n/g,''))), sha: j.sha };
-}
-async function ghPut(path, content, sha) {
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2))));
-  async function attempt(useSha) {
-    const body = { message: `Update ${path}`, content: encoded };
-    if (useSha) body.sha = useSha;
-    return fetch(repoUrl(path), {
-      method: 'PUT',
-      headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  }
-  let res = await attempt(sha);
-  if (!res.ok && (res.status === 409 || res.status === 422)) {
-    const cur = await ghGet(path);
-    res = await attempt(cur?.sha);
-  }
-  if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
-  return (await res.json()).content.sha;
-}
-
-// ── Save ──────────────────────────────────────────────────────────────────────
+// ── Save to Supabase ──────────────────────────────────────────────────────────
 async function saveData() {
-  if (!S.github.token) { toast('No save token — open ⚙️ Settings and paste the token from your admin', 'error'); openSettings(); return; }
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
   try {
-    const [sr, scr] = await Promise.all([ghGet('data/staff.json'), ghGet('data/schedule.json')]);
-    if (sr)  S.shas.staff    = sr.sha;
-    if (scr) S.shas.schedule = scr.sha;
-    const [ns, nsc] = await Promise.all([
-      ghPut('data/staff.json',    S.staff,                                        S.shas.staff),
-      ghPut('data/schedule.json', { periodStart: isoDate(S.month), branches: BRANCHES, editorPwHash: localStorage.getItem('edit_pw') || '', leave: S.leave, remarks: S.remarks, assignments: S.assignments }, S.shas.schedule)
-    ]);
-    S.shas.staff = ns; S.shas.schedule = nsc;
-    toast('Saved! Site updates in ~60 seconds.', 'success');
-  } catch (e) { toast(`Save failed: ${e.message}`, 'error'); }
-  finally { btn.disabled = false; btn.textContent = '💾 Save'; }
+    await sbClear('assignments', 'date=gte.2000-01-01');
+    await sbClear('leave_days',  'date=gte.2000-01-01');
+    await sbClear('remarks',     'date=gte.2000-01-01');
+    await sbClear('staff',       'id=not.is.null');
+
+    if (S.staff.length) {
+      await sbUpsert('staff', S.staff.map(s => ({ id: s.id, name: s.name })));
+    }
+    if (S.assignments.length) {
+      await sbUpsert('assignments', S.assignments.map(a => ({
+        date: a.date, shift: a.shift, branch: a.branch, staff_id: a.staffId
+      })));
+    }
+    if (S.leave.length) {
+      await sbUpsert('leave_days', S.leave.map(l => ({
+        date: l.date, staff_id: l.staffId, leave_type: l.leaveType || 'Annual Leave'
+      })));
+    }
+
+    const remarkRows = Object.entries(S.remarks)
+      .filter(([, text]) => text && text.trim())
+      .map(([date, text]) => ({ date, text }));
+    if (remarkRows.length) await sbUpsert('remarks', remarkRows);
+
+    const pwHash = localStorage.getItem('edit_pw') || '';
+    const settingsRows = [{ key: 'branches', value: JSON.stringify(BRANCHES) }];
+    if (pwHash) settingsRows.push({ key: 'editorPwHash', value: pwHash });
+    await sbUpsert('settings', settingsRows);
+
+    toast('Saved!', 'success');
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Save';
+  }
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -151,14 +185,12 @@ function handleLockBtn() {
   if (S.editMode) { lockEdit(); return; }
   const hasPw = !!localStorage.getItem('edit_pw');
   if (!hasPw && S.dataLoaded) {
-    // True first-time setup: server confirmed no password exists yet
     S.editMode = true;
     sessionStorage.setItem('edit_mode', '1');
     updateEditUI();
     openSettings();
     toast('Set an editor password in Settings', 'success');
   } else {
-    // Password exists (or page still loading) — always require it
     document.getElementById('pwError').classList.add('hidden');
     document.getElementById('pwInput').value = '';
     openModal('authOverlay');
@@ -260,12 +292,12 @@ function confirmBranch() {
   hideBranchInput();
   renderBranchLegend();
   renderCalendar();
-  toast(`"${name}" added — click Save to keep it`, 'success');
+  toast('"' + name + '" added — click Save to keep it', 'success');
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function isoDate(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
 }
 function pad(n) { return String(n).padStart(2,'0'); }
 
@@ -300,6 +332,7 @@ function renderCalendar() {
 
     const holiday    = getHoliday(ds);
     const leaveToday = S.leave.filter(l => l.date === ds);
+    const eventText  = S.remarks[ds] || '';
 
     const branchRows = BRANCHES.map((branch, bi) => {
       const amList = S.assignments.filter(a => a.date===ds && a.shift==='AM' && a.branch===branch);
@@ -325,11 +358,14 @@ function renderCalendar() {
       ? `<span class="cal-leave-badge">🏖️ Off ${leaveToday.length}</span>` : '';
     const holidayLabel = holiday
       ? `<div class="cal-holiday-name">${esc(holiday.name)}${holiday.approx?' *':''}</div>` : '';
+    const eventBadge = eventText
+      ? `<div class="cal-event-badge">📌 ${esc(eventText)}</div>` : '';
 
     html += `
       <div class="cal-cell${isToday?' today':''}${isSun?' sunday':''}${holiday?' holiday':''}" onclick="openDay('${ds}')">
         <div class="cal-cell-top"><span class="cal-day-num">${day}</span>${leaveCount}</div>
         ${holidayLabel}
+        ${eventBadge}
         <div class="cal-branch-rows">${branchRows}</div>
       </div>`;
   }
@@ -361,46 +397,51 @@ function renderDayBody() {
   const leaveList = S.leave.filter(l => l.date === ds);
   const leaveIds  = new Set(leaveList.map(l => l.staffId));
 
-  // Holiday banner
+  // ── Holiday banner ──
   const holidayBanner = holiday
     ? `<div class="day-holiday-banner">🎉 Public Holiday — ${esc(holiday.name)}${holiday.approx ? ' <span class="approx-note">(date approx.)</span>' : ''}</div>`
     : '';
 
-  // Leave section (always in edit mode; only when someone is on leave in view mode)
+  // ── Off / Leave section ──
   let leaveSection = '';
   if (leaveList.length || S.editMode) {
     const leaveChips = leaveList.map(l => {
       const st  = S.staff.find(s => s.id === l.staffId);
       const nm  = st ? st.name : l.staffId;
+      const lt  = l.leaveType ? `<span class="leave-type-tag">${esc(l.leaveType)}</span>` : '';
       const rmv = S.editMode
         ? `<button class="chip-x" onclick="removeLeave('${ds}','${esc(l.staffId)}')">×</button>`
         : '';
-      return `<span class="chip leave">${esc(nm)}${rmv}</span>`;
+      return `<span class="chip leave">${esc(nm)}${lt}${rmv}</span>`;
     }).join('');
 
     const leaveAvail = S.staff.filter(s => !leaveIds.has(s.id));
-    const leavePicker = S.editMode ? `
-      <div class="picker-wrap" id="pw-leave">
-        <button class="add-btn leave-add" onclick="togglePicker('leave')">+ Mark Leave</button>
-        <div class="picker-dd hidden" id="pd-leave">
-          ${leaveAvail.length
-            ? leaveAvail.map(s =>
-                `<div class="picker-item" onclick="addLeave('${ds}','${esc(s.id)}')">${esc(s.name)}</div>`
-              ).join('')
-            : '<div class="picker-empty">All staff on leave</div>'}
-        </div>
-      </div>` : '';
-
     const emptyMsg = !leaveList.length && !S.editMode ? '<span class="no-assign">None</span>' : '';
+
+    const addForm = S.editMode ? `
+      <div class="leave-add-form">
+        <select class="leave-select" id="leaveStaffSel">
+          <option value="">Who is off…</option>
+          ${leaveAvail.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}
+        </select>
+        <select class="leave-select" id="leaveTypeSel">
+          <option value="">Leave type…</option>
+          ${LEAVE_TYPES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="submitLeave('${ds}')">Mark Off</button>
+      </div>` : '';
 
     leaveSection = `
       <div class="day-leave-section">
-        <span class="day-leave-label">🏖️ Off</span>
-        <div class="day-leave-chips">${emptyMsg}${leaveChips}${leavePicker}</div>
+        <div class="day-leave-header">
+          <span class="day-leave-label">🏖️ Off</span>
+          <div class="day-leave-chips">${emptyMsg}${leaveChips}</div>
+        </div>
+        ${addForm}
       </div>`;
   }
 
-  // Branch × shift grid
+  // ── Shift × Branch grid (no Remark column) ──
   const branchHdrs = BRANCHES.map((b, bi) => `
     <div class="day-col-hdr">
       <span class="b-dot" style="background:${branchColor(bi)}"></span>
@@ -417,10 +458,11 @@ function renderDayBody() {
         const st      = S.staff.find(s => s.id === a.staffId);
         const nm      = st ? st.name : a.staffId;
         const onLeave = leaveIds.has(a.staffId);
+        const leaveEntry = onLeave ? S.leave.find(l => l.date===ds && l.staffId===a.staffId) : null;
         const rmv     = S.editMode
           ? `<button class="chip-x" onclick="removeAssign('${ds}','${shift}','${esc(branch)}','${esc(a.staffId)}')">×</button>`
           : '';
-        return `<span class="chip ${shift.toLowerCase()}${onLeave ? ' on-leave' : ''}" title="${onLeave ? 'Off' : ''}">${esc(nm)}${onLeave ? ' 🏖️' : ''}${rmv}</span>`;
+        return `<span class="chip ${shift.toLowerCase()}${onLeave ? ' on-leave' : ''}" title="${onLeave ? (leaveEntry?.leaveType || 'Off') : ''}">${esc(nm)}${onLeave ? ' 🏖️' : ''}${rmv}</span>`;
       }).join('');
 
       const picker = S.editMode ? `
@@ -436,45 +478,49 @@ function renderDayBody() {
         </div>` : '';
 
       const empty = !assigned.length && !S.editMode ? `<span class="no-assign">—</span>` : '';
-
       return `<div class="day-grid-cell">${chips}${empty}${picker}</div>`;
     }).join('');
-
-    // Remark cell for this shift
-    const remarkText = (S.remarks[ds] || {})[shift] || '';
-    const remarkCell = S.editMode
-      ? `<div class="day-grid-cell remark-cell">
-           <textarea class="remark-input" placeholder="Add note…"
-             oninput="updateRemark('${ds}','${shift}',this.value)">${esc(remarkText)}</textarea>
-         </div>`
-      : `<div class="day-grid-cell remark-cell">
-           ${remarkText ? `<span class="remark-text">${esc(remarkText)}</span>` : '<span class="no-assign">—</span>'}
-         </div>`;
 
     return `
       <div class="day-shift-lbl">
         <span class="shift-badge ${shift.toLowerCase()}">${shift}</span>
         ${shift==='AM' ? 'Morning' : 'Afternoon'}
       </div>
-      ${cells}${remarkCell}`;
+      ${cells}`;
   }).join('');
 
+  // ── Event row (below PM, full width) ──
+  const eventText = S.remarks[ds] || '';
+  const eventRow = S.editMode
+    ? `<div class="day-event-row">
+         <div class="day-event-label">📌 Event</div>
+         <div class="day-event-cell">
+           <textarea class="event-input" placeholder="Add event or note for this day…"
+             oninput="updateRemark('${ds}',this.value)">${esc(eventText)}</textarea>
+         </div>
+       </div>`
+    : (eventText
+        ? `<div class="day-event-row">
+             <div class="day-event-label">📌 Event</div>
+             <div class="day-event-cell"><span class="event-text">${esc(eventText)}</span></div>
+           </div>`
+        : '');
+
   body.innerHTML = holidayBanner + leaveSection + `
-    <div class="day-grid" style="grid-template-columns:110px repeat(${BRANCHES.length},1fr) 160px">
+    <div class="day-grid" style="grid-template-columns:110px repeat(${BRANCHES.length},1fr)">
       <div class="day-col-hdr">Time</div>
       ${branchHdrs}
-      <div class="day-col-hdr">Remark</div>
       ${shiftRows}
-    </div>`;
+    </div>
+    ${eventRow}`;
 }
 
 function togglePicker(id) {
-  const target  = document.getElementById(`pd-${id}`);
+  const target    = document.getElementById('pd-' + id);
   const wasHidden = target.classList.contains('hidden');
   document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
   if (wasHidden) {
-    // Use fixed positioning so no overflow container clips the dropdown
-    const btn = document.getElementById(`pw-${id}`).querySelector('button');
+    const btn = document.getElementById('pw-' + id).querySelector('button');
     const r   = btn.getBoundingClientRect();
     target.style.position = 'fixed';
     target.style.top  = (r.bottom + 4) + 'px';
@@ -500,10 +546,19 @@ function removeAssign(date, shift, branch, staffId) {
   renderCalendar();
 }
 
-function addLeave(date, staffId) {
-  if (!S.leave.some(l => l.date===date && l.staffId===staffId))
-    S.leave.push({ date, staffId });
-  document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
+function submitLeave(date) {
+  const staffSel = document.getElementById('leaveStaffSel');
+  const typeSel  = document.getElementById('leaveTypeSel');
+  const staffId  = staffSel.value;
+  const leaveType = typeSel.value;
+  if (!staffId)   { toast('Select a staff member', 'error'); return; }
+  if (!leaveType) { toast('Select a leave type', 'error'); return; }
+  addLeave(date, staffId, leaveType);
+}
+
+function addLeave(date, staffId, leaveType) {
+  S.leave = S.leave.filter(l => !(l.date === date && l.staffId === staffId));
+  S.leave.push({ date, staffId, leaveType: leaveType || 'Annual Leave' });
   renderDayBody();
   renderCalendar();
 }
@@ -514,38 +569,13 @@ function removeLeave(date, staffId) {
   renderCalendar();
 }
 
-function updateRemark(date, shift, text) {
-  if (!S.remarks[date]) S.remarks[date] = {};
-  S.remarks[date][shift] = text;
+function updateRemark(date, text) {
+  S.remarks[date] = text;
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function openSettings() {
-  const hasToken = !!S.github.token;
   document.getElementById('settingsBody').innerHTML = `
-    <div class="settings-section">
-      <div class="settings-title">Save Token</div>
-      <p class="hint" style="margin-bottom:.75rem">
-        ${hasToken
-          ? '✅ Token is set. Use the <strong>Copy</strong> button to share it with your editing team — they paste it here in their Settings so they can save too.'
-          : '⚠️ No token set. Ask your admin for the save token and paste it below.'}
-      </p>
-      <div class="form-group">
-        <label class="label">GitHub Personal Access Token (PAT)</label>
-        <div class="form-row">
-          <input id="cfgToken" class="input" type="password" value="${esc(S.github.token)}" placeholder="ghp_… (get this from your admin)" style="flex:1">
-          ${hasToken ? `<button class="btn btn-sm" style="flex:none;white-space:nowrap" onclick="copyToken()">📋 Copy</button>` : ''}
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="label">Repository Name</label>
-        <input id="cfgRepo" class="input" value="${esc(S.github.repo)}" placeholder="staff-scheduler">
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="saveGitHubSettings()">Save</button>
-    </div>
-
-    <hr class="divider">
-
     <div class="settings-section">
       <div class="settings-title">Editor Password</div>
       <p class="hint" style="margin-bottom:0.75rem">Share this password with anyone you want to allow editing.</p>
@@ -585,30 +615,6 @@ function staffListHTML() {
     </div>`).join('');
 }
 
-function saveGitHubSettings() {
-  const token = document.getElementById('cfgToken').value.trim();
-  const repo  = document.getElementById('cfgRepo').value.trim() || 'staff-scheduler';
-  S.github.token = token; S.github.repo = repo;
-  localStorage.setItem('gh_token', token);
-  localStorage.setItem('gh_repo',  repo);
-  toast('Settings saved', 'success');
-  openSettings(); // refresh panel so Copy button appears if token was just entered
-}
-
-function copyToken() {
-  const token = S.github.token;
-  if (!token) return;
-  navigator.clipboard.writeText(token).then(() => {
-    toast('Token copied — send it to your colleague (WhatsApp, etc.)', 'success');
-  }).catch(() => {
-    const el = document.getElementById('cfgToken');
-    el.type = 'text'; el.select();
-    try { document.execCommand('copy'); } catch {}
-    el.type = 'password';
-    toast('Token copied', 'success');
-  });
-}
-
 async function savePassword() {
   const pw  = document.getElementById('newPw').value;
   const pw2 = document.getElementById('confirmPw').value;
@@ -617,7 +623,7 @@ async function savePassword() {
   localStorage.setItem('edit_pw', await hashPw(pw));
   document.getElementById('newPw').value = '';
   document.getElementById('confirmPw').value = '';
-  toast('Password set', 'success');
+  toast('Password set — click Save to apply for everyone', 'success');
 }
 
 function addStaff() {
@@ -629,7 +635,7 @@ function addStaff() {
   document.getElementById('newStaffId').value = '';
   document.getElementById('newStaffName').value = '';
   document.getElementById('staffList').innerHTML = staffListHTML();
-  toast(`${name} added`, 'success');
+  toast(name + ' added', 'success');
 }
 
 function removeStaff(id) {
@@ -638,7 +644,7 @@ function removeStaff(id) {
   S.assignments = S.assignments.filter(a => a.staffId !== id);
   document.getElementById('staffList').innerHTML = staffListHTML();
   renderCalendar();
-  if (s) toast(`${s.name} removed`);
+  if (s) toast(s.name + ' removed');
 }
 
 // ── Modals ────────────────────────────────────────────────────────────────────
@@ -653,10 +659,10 @@ document.addEventListener('click', e => {
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 let _tt;
-function toast(msg, type = '') {
+function toast(msg, type) {
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = `toast${type ? ' '+type : ''}`;
+  el.className = 'toast' + (type ? ' ' + type : '');
   clearTimeout(_tt);
   _tt = setTimeout(() => el.classList.add('hidden'), 3000);
 }
