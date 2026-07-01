@@ -501,9 +501,16 @@ function renderDayBody() {
           <button class="add-btn" onclick="togglePicker('${shift}-${bi}')">+ Add</button>
           <div class="picker-dd hidden" id="pd-${shift}-${bi}">
             ${available.length
-              ? available.map(s =>
-                  `<div class="picker-item" onclick="addAssign('${ds}','${shift}','${esc(branch)}','${esc(s.id)}')">${esc(s.name)}</div>`
-                ).join('')
+              ? `<div class="picker-check-list">
+                  ${available.map(s =>
+                    `<label class="picker-check-item">
+                       <input type="checkbox" value="${esc(s.id)}"> ${esc(s.name)}
+                     </label>`
+                  ).join('')}
+                 </div>
+                 <div class="picker-footer">
+                   <button class="picker-add-btn" onclick="addChecked('${ds}','${shift}','${esc(branch)}','${shift}-${bi}')">Add Selected</button>
+                 </div>`
               : `<div class="picker-empty">All staff assigned</div>`}
           </div>
         </div>` : '';
@@ -564,18 +571,31 @@ function togglePicker(id) {
 
 function addAssign(date, shift, branch, staffId) {
   const conflict = S.assignments.find(a => a.date===date && a.shift===shift && a.staffId===staffId && a.branch!==branch);
-  if (conflict) {
-    const nm = S.staff.find(s => s.id===staffId)?.name || staffId;
-    toast(nm + ' is already on ' + shift + ' at ' + conflict.branch, 'error');
-    document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
-    return;
-  }
+  if (conflict) return { ok: false, reason: conflict.branch };
   if (!S.assignments.some(a => a.date===date && a.shift===shift && a.branch===branch && a.staffId===staffId))
     S.assignments.push({ date, shift, branch, staffId });
+  return { ok: true };
+}
+
+function addChecked(date, shift, branch, pickerId) {
+  const dd = document.getElementById('pd-' + pickerId);
+  const checked = [...dd.querySelectorAll('input[type=checkbox]:checked')];
+  if (!checked.length) { toast('Tick at least one staff member', 'error'); return; }
+
+  const conflicts = [];
+  checked.forEach(cb => {
+    const result = addAssign(date, shift, branch, cb.value);
+    if (!result.ok) {
+      const nm = S.staff.find(s => s.id===cb.value)?.name || cb.value;
+      conflicts.push(nm + ' (already at ' + result.reason + ')');
+    }
+  });
+
   document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
   markDirty();
   renderDayBody();
   renderCalendar();
+  if (conflicts.length) toast('Skipped: ' + conflicts.join(', '), 'error');
 }
 
 function removeAssign(date, shift, branch, staffId) {

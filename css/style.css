@@ -312,6 +312,22 @@ main { padding: 1rem; }
 .picker-item:hover { background: var(--primary-light); color: var(--primary); }
 .picker-empty { padding: .55rem .9rem; font-size: .82rem; color: var(--muted); font-style: italic; }
 
+/* Multi-select checkboxes */
+.picker-check-list { padding: .25rem 0; max-height: 200px; overflow-y: auto; }
+.picker-check-item {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .45rem .9rem; font-size: .875rem; cursor: pointer; transition: background .1s;
+}
+.picker-check-item:hover { background: var(--primary-light); color: var(--primary); }
+.picker-check-item input[type=checkbox] { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+.picker-footer { padding: .4rem .7rem .55rem; border-top: 1px solid var(--border); }
+.picker-add-btn {
+  width: 100%; padding: .38rem; background: var(--primary); color: white;
+  border: none; border-radius: 6px; font-size: .82rem; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+.picker-add-btn:hover { background: #1d4ed8; }
+
 /* ── Settings ── */
 .settings-section { margin-bottom: .25rem; }
 .settings-title { font-weight: 700; font-size: .875rem; margin-bottom: .75rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
