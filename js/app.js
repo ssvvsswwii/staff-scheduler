@@ -31,7 +31,7 @@ function getHoliday(ds) { return BRUNEI_HOLIDAYS.find(h => h.date === ds) || nul
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
 const SB_URL = 'https://vdwpybgfhymjfqgsvidl.supabase.co/rest/v1';
-const SB_KEY = 'sb_publishable_Ds2R9f1isRnliTXqlrdA2A_ycSZ1yNT';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkd3B5YmdmaHltamZxZ3N2aWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTQzMzIsImV4cCI6MjA5ODQzMDMzMn0.foKp5NwaKMx5t32LMOWFQjjL5jjHgAXrtkU3g-myY4M';
 
 function sbHeaders(extra) {
   return Object.assign({
@@ -128,7 +128,7 @@ async function loadPublicData() {
     renderCalendar();
   } catch (e) {
     S.dataLoaded = true;
-    toast('Could not load data — check your connection', 'error');
+    toast('Load error: ' + e.message, 'error');
   }
 }
 
