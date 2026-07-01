@@ -273,6 +273,7 @@ function renderBranchLegend() {
     <div class="branch-legend">
       <span class="legend-dot" style="background:${branchColor(i)}"></span>
       <span>${esc(b)}</span>
+      ${S.editMode ? `<button class="branch-del-btn" onclick="removeBranch('${esc(b)}')" title="Remove branch">×</button>` : ''}
     </div>`).join('');
 
   const addBtn = S.editMode ? `
@@ -299,6 +300,18 @@ function hideBranchInput() {
   document.getElementById('branchNameInput').value = '';
   document.getElementById('branchInputRow').classList.add('hidden');
   document.getElementById('branchAddWrap').querySelector('.branch-add-btn').style.display = '';
+}
+
+function removeBranch(name) {
+  if (BRANCHES.length <= 1) { toast('Must keep at least one branch', 'error'); return; }
+  if (!confirm(`Remove "${name}"? All its assignments will be deleted.`)) return;
+  BRANCHES = BRANCHES.filter(b => b !== name);
+  S.assignments = S.assignments.filter(a => a.branch !== name);
+  markDirty();
+  renderBranchLegend();
+  renderCalendar();
+  if (S.selectedDay) renderDayBody();
+  toast('"' + name + '" removed — click Save to apply', 'success');
 }
 
 function confirmBranch() {
