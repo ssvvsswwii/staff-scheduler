@@ -389,8 +389,9 @@ function renderCalendar() {
       ? `<span class="cal-leave-badge">🏖️ Off ${leaveToday.length}</span>` : '';
     const holidayLabel = holiday
       ? `<div class="cal-holiday-name">${esc(holiday.name)}${holiday.approx?' *':''}</div>` : '';
-    const eventBadge = eventText
-      ? `<div class="cal-event-badge">📝 ${esc(eventText)}</div>` : '';
+    const eventPreview = eventText.split('\n')[0].trim();
+    const eventBadge = eventPreview
+      ? `<div class="cal-event-badge">📝 ${esc(eventPreview)}</div>` : '';
 
     html += `
       <div class="cal-cell${isToday?' today':''}${isSun?' sunday':''}${holiday?' holiday':''}" onclick="openDay('${ds}')">
