@@ -386,7 +386,7 @@ main { padding: 1rem; }
   .app-title { display: none; }
   .month-label { min-width: 120px; font-size: .9rem; }
   .cal-cell { min-height: 72px; padding: .3rem; }
-  .cal-chip { width: 18px; height: 18px; font-size: .5rem; }
+  .cal-chip { font-size: .5rem; max-width: 52px; padding: .05rem .2rem; }
   .cal-day-num { font-size: .7rem; }
   .b-dot { width: 5px; height: 5px; }
 }

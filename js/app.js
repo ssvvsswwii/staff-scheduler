@@ -178,7 +178,7 @@ async function saveData() {
     toast('Save failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '💾 Save';
+    updateSaveBtn();
   }
 }
 
@@ -323,6 +323,7 @@ function confirmBranch() {
   markDirty();
   renderBranchLegend();
   renderCalendar();
+  if (S.selectedDay) renderDayBody();
   toast('"' + name + '" added — click Save to keep it', 'success');
 }
 
@@ -331,10 +332,6 @@ function isoDate(d) {
   return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
 }
 function pad(n) { return String(n).padStart(2,'0'); }
-
-function initials(name) {
-  return (name || '?').trim().split(/\s+/).map(w => w[0].toUpperCase()).join('').slice(0,2);
-}
 
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
