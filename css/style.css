@@ -348,6 +348,11 @@ main { padding: 1rem; }
 .staff-id { font-size: .72rem; font-family: monospace; background: #f1f5f9; padding: .15rem .4rem; border-radius: 4px; color: var(--muted); flex-shrink: 0; }
 .staff-name { flex: 1; font-size: .875rem; font-weight: 500; }
 .empty-state { color: var(--muted); font-size: .875rem; text-align: center; padding: .75rem 0; }
+.staff-edit-input { flex: 1; padding: .4rem .6rem; }
+.staff-edit-btn { background: var(--bg); color: var(--primary); border: 1px solid var(--border); }
+.staff-edit-btn:hover:not(:disabled) { background: var(--primary-light); border-color: var(--primary); }
+.staff-cancel-btn { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+.staff-cancel-btn:hover:not(:disabled) { background: #e2e8f0; }
 
 /* ── Shift badge ── */
 .shift-badge { display: inline-block; padding: .12rem .4rem; border-radius: 4px; font-size: .68rem; font-weight: 700; }

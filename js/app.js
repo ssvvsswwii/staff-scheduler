@@ -625,6 +625,7 @@ function updateRemark(date, text) {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function openSettings() {
+  editingStaffId = null;
   document.getElementById('settingsBody').innerHTML = `
     <div class="settings-section">
       <div class="settings-title">Editor Password</div>
@@ -655,13 +656,52 @@ function openSettings() {
   openModal('settingsOverlay');
 }
 
+let editingStaffId = null;
+
 function staffListHTML() {
   if (!S.staff.length) return '<p class="empty-state">No staff yet.</p>';
-  return S.staff.map(s => `
+  return S.staff.map(s => {
+    if (s.id === editingStaffId) {
+      return `
+    <div class="staff-item">
+      <input class="input staff-edit-input" id="editStaffInput" type="text" value="${esc(s.name)}"
+             onkeydown="if(event.key==='Enter')saveStaffEdit('${esc(s.id)}');if(event.key==='Escape')cancelStaffEdit()">
+      <button class="btn btn-primary btn-sm" onclick="saveStaffEdit('${esc(s.id)}')">Save</button>
+      <button class="btn btn-sm staff-cancel-btn" onclick="cancelStaffEdit()">Cancel</button>
+    </div>`;
+    }
+    return `
     <div class="staff-item">
       <span class="staff-name">${esc(s.name)}</span>
+      <button class="btn btn-sm staff-edit-btn" onclick="editStaff('${esc(s.id)}')">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="removeStaff('${esc(s.id)}')">Remove</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function editStaff(id) {
+  editingStaffId = id;
+  document.getElementById('staffList').innerHTML = staffListHTML();
+  const inp = document.getElementById('editStaffInput');
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+function cancelStaffEdit() {
+  editingStaffId = null;
+  document.getElementById('staffList').innerHTML = staffListHTML();
+}
+
+function saveStaffEdit(id) {
+  const name = document.getElementById('editStaffInput').value.trim();
+  if (!name) { toast('Enter a name', 'error'); return; }
+  const s = S.staff.find(x => x.id === id);
+  if (s) s.name = name;
+  editingStaffId = null;
+  document.getElementById('staffList').innerHTML = staffListHTML();
+  markDirty();
+  renderCalendar();
+  if (S.selectedDay) renderDayBody();
+  toast('Name updated', 'success');
 }
 
 async function savePassword() {
