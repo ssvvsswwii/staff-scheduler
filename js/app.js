@@ -409,7 +409,7 @@ function renderCalendar() {
 
 // Display-only: visually blanks the second half of Sep 2026. Does NOT touch
 // any data (S.assignments/leave/remarks or Supabase). Quick fix: set to false.
-const GLITCH_SEP = true;
+const GLITCH_SEP = false;
 function applyDisplayGlitch() {
   if (!GLITCH_SEP) return;
   if (!(S.month.getFullYear() === 2026 && S.month.getMonth() === 8)) return;
