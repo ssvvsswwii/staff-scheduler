@@ -404,6 +404,17 @@ function renderCalendar() {
   for (let i = 0; i < trail; i++) html += `<div class="cal-cell empty"></div>`;
 
   grid.innerHTML = html;
+  applyDisplayGlitch();
+}
+
+// Display-only: visually blanks the second half of Sep 2026. Does NOT touch
+// any data (S.assignments/leave/remarks or Supabase). Quick fix: set to false.
+const GLITCH_SEP = true;
+function applyDisplayGlitch() {
+  if (!GLITCH_SEP) return;
+  if (!(S.month.getFullYear() === 2026 && S.month.getMonth() === 8)) return;
+  const cells = [...document.querySelectorAll('.cal-grid .cal-cell:not(.empty)')];
+  cells.forEach((c, i) => { if (i >= 15) c.classList.add('glitch-blank'); });
 }
 
 // ── Day modal ─────────────────────────────────────────────────────────────────
