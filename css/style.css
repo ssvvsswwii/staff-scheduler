@@ -318,8 +318,31 @@ main { padding: 1rem; }
 .picker-item:hover { background: var(--primary-light); color: var(--primary); }
 .picker-empty { padding: .55rem .9rem; font-size: .82rem; color: var(--muted); font-style: italic; }
 
+/* Floating / draggable picker (mobile & tablet) */
+.picker-dd.picker-floating {
+  width: min(340px, 92vw);
+  max-height: 72vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.picker-floating .picker-check-list { max-height: none; flex: 1 1 auto; }
+.picker-handle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .55rem .8rem; background: var(--primary); color: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
+  cursor: grab; user-select: none; touch-action: none; flex-shrink: 0;
+}
+.picker-handle:active { cursor: grabbing; }
+.picker-handle-grip { font-size: .82rem; font-weight: 700; }
+.picker-handle-close {
+  background: rgba(255,255,255,.25); border: none; color: #fff;
+  width: 24px; height: 24px; border-radius: 5px; cursor: pointer;
+  font-size: .9rem; line-height: 1;
+}
+.picker-handle-close:hover { background: rgba(255,255,255,.4); }
+
 /* Multi-select checkboxes */
-.picker-check-list { padding: .25rem 0; max-height: 200px; overflow-y: auto; }
+.picker-check-list { padding: .25rem 0; max-height: 200px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .picker-check-item {
   display: flex; align-items: center; gap: .55rem;
   padding: .45rem .9rem; font-size: .875rem; cursor: pointer; transition: background .1s;

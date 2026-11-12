@@ -564,11 +564,22 @@ function renderDayBody() {
     ${eventRow}`;
 }
 
+// Set FLOAT_PICKER to false to revert to the original anchored dropdown everywhere.
+const FLOAT_PICKER = true;
+
 function togglePicker(id) {
   const target    = document.getElementById('pd-' + id);
   const wasHidden = target.classList.contains('hidden');
   document.querySelectorAll('.picker-dd').forEach(el => el.classList.add('hidden'));
-  if (wasHidden) {
+  if (!wasHidden) return;
+
+  const useFloat = FLOAT_PICKER &&
+    (window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 1024);
+
+  if (useFloat) {
+    openFloatingPicker(target);
+  } else {
+    // ── Original anchored dropdown (restore point) ──
     const btn = document.getElementById('pw-' + id).querySelector('button');
     const r   = btn.getBoundingClientRect();
     target.style.position = 'fixed';
@@ -577,6 +588,67 @@ function togglePicker(id) {
     target.style.width = '';
     target.classList.remove('hidden');
   }
+}
+
+function openFloatingPicker(dd) {
+  let handle = dd.querySelector('.picker-handle');
+  if (!handle) {
+    handle = document.createElement('div');
+    handle.className = 'picker-handle';
+    handle.innerHTML = '<span class="picker-handle-grip">⠿ Drag to move</span>' +
+                       '<button class="picker-handle-close" aria-label="Close">✕</button>';
+    dd.insertBefore(handle, dd.firstChild);
+    handle.querySelector('.picker-handle-close')
+      .addEventListener('click', () => dd.classList.add('hidden'));
+    attachPickerDrag(handle, dd);
+  }
+  dd.classList.add('picker-floating');
+  dd.style.position = 'fixed';
+  dd.classList.remove('hidden');
+
+  const w = dd.offsetWidth, h = dd.offsetHeight;
+  let left = (window.innerWidth  - w) / 2;
+  let top  = (window.innerHeight - h) / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth  - w - 8));
+  top  = Math.max(8, Math.min(top,  window.innerHeight - h - 8));
+  dd.style.left = left + 'px';
+  dd.style.top  = top + 'px';
+}
+
+function attachPickerDrag(handle, panel) {
+  let sx, sy, startL, startT, dragging = false;
+  const point = e => e.touches ? e.touches[0] : e;
+  const onDown = e => {
+    dragging = true;
+    const p = point(e); sx = p.clientX; sy = p.clientY;
+    const r = panel.getBoundingClientRect(); startL = r.left; startT = r.top;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+    if (e.cancelable) e.preventDefault();
+  };
+  const onMove = e => {
+    if (!dragging) return;
+    const p = point(e);
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    let nl = startL + (p.clientX - sx);
+    let nt = startT + (p.clientY - sy);
+    nl = Math.max(4, Math.min(nl, window.innerWidth  - w - 4));
+    nt = Math.max(4, Math.min(nt, window.innerHeight - h - 4));
+    panel.style.left = nl + 'px';
+    panel.style.top  = nt + 'px';
+    if (e.cancelable) e.preventDefault();
+  };
+  const onUp = () => {
+    dragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+  };
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, { passive: false });
 }
 
 function addAssign(date, shift, branch, staffId) {
