@@ -591,28 +591,13 @@ function togglePicker(id) {
 }
 
 function openFloatingPicker(dd) {
-  const closeIt = ev => { if (ev) { ev.preventDefault(); ev.stopPropagation(); } dd.classList.add('hidden'); };
-
   let handle = dd.querySelector('.picker-handle');
   if (!handle) {
     handle = document.createElement('div');
     handle.className = 'picker-handle';
-    handle.innerHTML = '<span class="picker-handle-grip">⠿ Drag to move</span>' +
-                       '<button type="button" class="picker-handle-close" aria-label="Close">✕</button>';
+    handle.innerHTML = '<span class="picker-handle-grip">⠿ Drag to move</span>';
     dd.insertBefore(handle, dd.firstChild);
-    const x = handle.querySelector('.picker-handle-close');
-    x.addEventListener('click', closeIt);
-    x.addEventListener('touchend', closeIt, { passive: false });
     attachPickerDrag(handle, dd);
-  }
-  if (!dd.querySelector('.picker-float-close')) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'picker-float-close';
-    btn.textContent = '✕  Close';
-    btn.addEventListener('click', closeIt);
-    btn.addEventListener('touchend', closeIt, { passive: false });
-    dd.appendChild(btn);
   }
   dd.classList.add('picker-floating');
   dd.style.position = 'fixed';
