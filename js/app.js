@@ -619,6 +619,7 @@ function attachPickerDrag(handle, panel) {
   let sx, sy, startL, startT, dragging = false;
   const point = e => e.touches ? e.touches[0] : e;
   const onDown = e => {
+    if (e.target.closest('.picker-handle-close')) return; // let the close button receive the tap
     dragging = true;
     const p = point(e); sx = p.clientX; sy = p.clientY;
     const r = panel.getBoundingClientRect(); startL = r.left; startT = r.top;
